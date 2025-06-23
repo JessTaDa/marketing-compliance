@@ -17,6 +17,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Session, declarative_base, relationship, sessionmaker
 from sqlalchemy.sql.expression import func
+from fastapi.middleware.cors import CORSMiddleware
 
 # SQLAlchemy setup
 SQLALCHEMY_DATABASE_URL = "sqlite:///./norm.db"
@@ -71,6 +72,14 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
+# Allow all origins for MVP testing
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class NodeResponse(BaseModel):
     id: int = Field(..., description="The id of the node")
@@ -96,8 +105,52 @@ class NodeResponse(BaseModel):
             children=[cls.from_orm(child) for child in node.children],
         )
 
+# Convert JSON to Python objects
+# Check if data types are correct
+# Handle missing or invalid data
+# Convert Python objects back to JSON
+# Request model for override operation
+class OverrideRequest(BaseModel):
+    status: StatusEnum = Field(..., description="The new status to set")
+
 
 NodeResponse.model_rebuild()
+
+
+# Helper function to determine if a node should be considered passing
+def is_node_passing(node: Node) -> bool:
+    """Determine if a node is passing based on its status and children"""
+    if not node.children:  # Leaf node
+        return node.status == StatusEnum.PASS
+    else:  # Parent node - all children must pass
+        return all(is_node_passing(child) for child in node.children)
+
+
+# Helper function to update node status and propagate changes
+def update_node_status(db: Session, node_id: int, new_status: StatusEnum) -> Node:
+    """Update a node's status and propagate changes up the tree"""
+    node = db.query(Node).filter(Node.id == node_id).first()
+    if not node:
+        raise HTTPException(status_code=404, detail="Node not found")
+    
+    # Update the node's status
+    node.status = new_status
+    db.commit()
+    
+    # Propagate changes up the tree
+    current = node.parent
+    while current:
+        # Determine if parent should be passing based on all children
+        should_pass = all(is_node_passing(child) for child in current.children)
+        new_parent_status = StatusEnum.PASS if should_pass else StatusEnum.FAIL
+        
+        if current.status != new_parent_status:
+            current.status = new_parent_status
+            db.commit()
+        
+        current = current.parent
+    
+    return node
 
 
 @app.get(
@@ -121,6 +174,30 @@ def get_random_tree(db: Session = Depends(get_db)) -> NodeResponse:
             detail="No root node found - perhaps the database isn't seeded?",
         )
 
+    return NodeResponse.from_orm(root_node)
+
+
+@app.post(
+    "/override/{node_id}",
+    response_model=NodeResponse,
+    summary="Override Node Status",
+    description="Override the status of a node and propagate changes up the tree.",
+    operation_id="overrideNode",
+)
+def override_node_status(
+    node_id: int, 
+    override_request: OverrideRequest, 
+    db: Session = Depends(get_db)
+) -> NodeResponse:
+    """Override a node's status and return the updated root node"""
+    # Update the node and propagate changes
+    updated_node = update_node_status(db, node_id, override_request.status)
+    
+    # Find and return the root node (the updated tree)
+    root_node = updated_node
+    while root_node.parent:
+        root_node = root_node.parent
+    
     return NodeResponse.from_orm(root_node)
 
 
