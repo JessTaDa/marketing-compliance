@@ -3,12 +3,21 @@ import { useTreeData } from './hooks/useTreeData'
 import { StatusFilter } from './components/StatusFilter'
 import { NodeRenderer } from './components/NodeRenderer'
 import { filterWithFading } from './utils/treeUtils'
+import { darkTheme } from './utils/styles'
 
 export default function App() {
   const [cardView, setCardView] = useState(false)
   const [statusFilter, setStatusFilter] = useState(['FAIL'])
   
   const { trees, showAll, setShowAll, fadingIds, expanded, toggleExpand, loadTree, loadAllTrees, handleOverride } = useTreeData(statusFilter)
+
+  // Minimal global dark theme styles
+  React.useEffect(() => {
+    document.body.style.background = darkTheme.background
+    document.body.style.color = darkTheme.text
+    document.body.style.fontFamily = 'Inter, Segoe UI, Arial, sans-serif'
+    document.body.style.margin = '0'
+  }, [])
 
   if (!trees) return <div>Loading...</div>
 

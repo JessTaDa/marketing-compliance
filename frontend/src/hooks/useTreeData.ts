@@ -67,21 +67,18 @@ export function useTreeData(statusFilter: string[]) {
       }
       
       const node = findNode(newTrees, nodeId)
-      if (node) {
-        const nodeStatus = node.status || 'N/A'
-        if (!statusFilter.includes(nodeStatus)) {
-          // Add to fading state
-          setFadingIds(prev => new Set([...prev, nodeId]))
-          
-          // Remove from fading state after animation completes
-          setTimeout(() => {
-            setFadingIds(prev => {
-              const next = new Set(prev)
-              next.delete(nodeId)
-              return next
-            })
-          }, 1500)
-        }
+      if (node && !statusFilter.includes(node.status || 'N/A')) {
+        // Add to fading state
+        setFadingIds(prev => new Set([...prev, nodeId]))
+        
+        // Remove from fading state after animation completes
+        setTimeout(() => {
+          setFadingIds(prev => {
+            const next = new Set(prev)
+            next.delete(nodeId)
+            return next
+          })
+        }, 1500)
       }
     } catch (error) {
       console.error('Error overriding node:', error)

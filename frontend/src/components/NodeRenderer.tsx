@@ -1,6 +1,6 @@
 import React from 'react'
 import { Node } from '../types'
-import { bgColors } from '../utils/styles'
+import { darkTheme, bgColors } from '../utils/styles'
 
 interface NodeRendererProps {
   node: Node
@@ -21,7 +21,7 @@ export function NodeRenderer({
   toggleExpand = () => {},
   cardView = false
 }: NodeRendererProps) {
-  const statusColor = node.status === 'PASS' ? 'green' : node.status === 'FAIL' ? 'red' : 'gray'
+  const statusColor = node.status === 'PASS' ? darkTheme.pass : node.status === 'FAIL' ? darkTheme.fail : darkTheme.na
   const icon = node.status === 'PASS' ? '✔️' : node.status === 'FAIL' ? '❌' : '⬤'
   
   // Count pass and total nodes in this tree
@@ -42,27 +42,28 @@ export function NodeRenderer({
   const arrow = hasChildren ? (isExpanded ? '▼' : '▶') : null
   const fadeClass = fadingIds.has(node.id) ? 'fade-out' : ''
 
-  const containerStyle = cardView ? {
-    marginLeft: depth * 10,
-    marginBottom: 10,
-    padding: 10,
-    border: '1px solid #ddd',
-    borderRadius: 6,
-    background: bgColors[depth % bgColors.length],
-    boxShadow: depth === 0 ? '0 2px 8px #eee' : undefined,
-  } : {
-    marginLeft: depth * 20
-  }
+  const containerStyle = {
+    marginLeft: depth * 24,
+    marginBottom: 16,
+    padding: 16,
+    borderRadius: 10,
+    background: darkTheme.card,
+    boxShadow: darkTheme.shadow,
+    border: `1px solid ${darkTheme.border}`,
+    color: darkTheme.text,
+    transition: 'background 0.2s, box-shadow 0.2s',
+  } as React.CSSProperties
 
   return (
     <div key={node.id} style={containerStyle} className={fadeClass}>
-      <div style={{ display: 'flex', alignItems: 'center' }}>
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
         {hasChildren && (
-          <span style={{ cursor: 'pointer', marginRight: 4 }} onClick={() => toggleExpand(node.id)}>{arrow}</span>
+          <span style={{ cursor: 'pointer', marginRight: 8, color: darkTheme.subtitle, fontSize: '1.1em' }} onClick={() => toggleExpand(node.id)}>{arrow}</span>
         )}
-        <span style={{ fontSize: '1.3em', color: statusColor, marginRight: 8 }}>{icon} <span style={{ fontSize: '0.8em', color: '#888' }}>({passCount}/{totalCount})</span></span>
-        <span>{cardView ? <strong>{node.type}</strong> : node.type}: {node.name}</span>
-        <span style={{ color: statusColor, marginLeft: 8 }}>{node.status || 'N/A'}</span>
+        <span style={{ fontSize: '1.3em', color: statusColor, marginRight: 10 }}>{icon}</span>
+        <span style={{ fontWeight: 600, marginRight: 8 }}>{node.type}</span>
+        <span style={{ marginRight: 8 }}>{node.name}</span>
+        <span style={{ color: statusColor, fontWeight: 500, marginLeft: 'auto', marginRight: 8 }}>{node.status || 'N/A'}</span>
         {node.status === null && (
           <>
             <button onClick={() => onOverride(node.id, 'PASS')} style={{ marginLeft: 8 }}>Set PASS</button>
@@ -76,7 +77,7 @@ export function NodeRenderer({
           <button onClick={() => onOverride(node.id, 'PASS')} style={{ marginLeft: 8 }}>Set PASS</button>
         )}
       </div>
-      <div style={{ fontSize: '0.85em', color: '#888', marginLeft: 28, marginTop: 2 }}>
+      <div style={{ fontSize: '0.95em', color: darkTheme.subtitle, marginLeft: 32, marginTop: 2, marginBottom: 2 }}>
         ID: {node.id} | Reason: {'reason' in node ? (node as any).reason || 'N/A' : 'N/A'}
         {node.last_updated_by_user && (
           <span> | User manually updated: {new Date(node.last_updated_by_user).toLocaleString()}</span>
