@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 
 interface Node {
   id: number
@@ -9,16 +9,34 @@ interface Node {
 }
 
 const bgColors = ['#f9f9f9', '#e6f7ff', '#fffbe6', '#f6ffed']
-const STATUS_OPTIONS = [
-  { label: 'PASS', value: 'PASS' },
-  { label: 'FAIL', value: 'FAIL' },
-  { label: 'N/A', value: 'N/A' },
-]
 
-function renderNodeTabbed(node: Node, onOverride: (id: number, status: string) => void, depth = 0) {
+// Fade-out CSS (inject once)
+const fadeStyleId = 'fade-style'
+if (!document.getElementById(fadeStyleId)) {
+  const style = document.createElement('style')
+  style.id = fadeStyleId
+  style.innerHTML = `
+    .fade-out {
+      opacity: 0 !important;
+      transition: opacity 1.5s ease-out !important;
+    }
+    .fade-out * {
+      opacity: 0 !important;
+      transition: opacity 1.5s ease-out !important;
+    }
+    .tree-container > div {
+      transition: transform 1s ease-out;
+    }
+  `;
+  document.head.appendChild(style)
+}
+
+function renderNodeTabbed(node: Node, onOverride: (id: number, status: string) => void, depth = 0, fadingIds: Set<number> = new Set()) {
   const statusColor = node.status === 'PASS' ? 'green' : node.status === 'FAIL' ? 'red' : 'gray'
+  const fadeClass = fadingIds.has(node.id) ? 'fade-out' : ''
+  console.log("rerunning renderNodeTabbed ", node.id)
   return (
-    <div key={node.id} style={{ marginLeft: depth * 20 }}>
+    <div key={node.id} style={{ marginLeft: depth * 20 }} className={fadeClass}>
       {node.type}: {node.name} (id: {node.id}) | <span style={{ color: statusColor }}>{node.status || 'N/A'}</span>
       {node.status === null && (
         <>
@@ -32,12 +50,12 @@ function renderNodeTabbed(node: Node, onOverride: (id: number, status: string) =
       {node.status === 'FAIL' && (
         <button onClick={() => onOverride(node.id, 'PASS')} style={{ marginLeft: 8 }}>Set PASS</button>
       )}
-      {node.children.map(child => renderNodeTabbed(child, onOverride, depth + 1))}
+      {node.children.map(child => renderNodeTabbed(child, onOverride, depth + 1, fadingIds))}
     </div>
   )
 }
 
-function renderNodeCard(node: Node, onOverride: (id: number, status: string) => void, depth = 0) {
+function renderNodeCard(node: Node, onOverride: (id: number, status: string) => void, depth = 0, fadingIds: Set<number> = new Set()) {
   const statusColor = node.status === 'PASS' ? 'green' : node.status === 'FAIL' ? 'red' : 'gray'
   const cardStyle = {
     marginLeft: depth * 10,
@@ -48,8 +66,10 @@ function renderNodeCard(node: Node, onOverride: (id: number, status: string) => 
     background: bgColors[depth % bgColors.length],
     boxShadow: depth === 0 ? '0 2px 8px #eee' : undefined,
   } as React.CSSProperties
+  const fadeClass = fadingIds.has(node.id) ? 'fade-out' : ''
+  console.log("rerunning renderNodeCard ", node.id)
   return (
-    <div key={node.id} style={cardStyle}>
+    <div key={node.id} style={cardStyle} className={fadeClass}>
       <div>
         <strong>{node.type}</strong>: {node.name} (id: {node.id}) |{' '}
         <span style={{ color: statusColor }}>{node.status || 'N/A'}</span>
@@ -66,44 +86,19 @@ function renderNodeCard(node: Node, onOverride: (id: number, status: string) => 
           <button onClick={() => onOverride(node.id, 'PASS')} style={{ marginLeft: 8 }}>Set PASS</button>
         )}
       </div>
-      {node.children.map(child => renderNodeCard(child, onOverride, depth + 1))}
+      {node.children.map(child => renderNodeCard(child, onOverride, depth + 1, fadingIds))}
     </div>
   )
-}
-
-// Recursively filter tree to only include nodes with selected statuses and their parent context
-function filterByStatus(node: Node, statuses: string[]): Node | null {
-  const status = node.status || 'N/A'
-  if (statuses.includes(status)) {
-    return {
-      ...node,
-      children: node.children.map(child => filterByStatus(child, statuses)).filter(Boolean) as Node[],
-    }
-  }
-  // If any child matches, include this node for context
-  const filteredChildren = node.children.map(child => filterByStatus(child, statuses)).filter(Boolean) as Node[]
-  if (filteredChildren.length > 0) {
-    return { ...node, children: filteredChildren }
-  }
-  return null
-}
-
-// Count all nodes in a tree
-function countNodes(node: Node): number {
-  return 1 + node.children.reduce((sum, child) => sum + countNodes(child), 0)
-}
-// Count all failing nodes in a tree
-function countFailingNodes(node: Node): number {
-  const failHere = node.status === 'FAIL' ? 1 : 0
-  return failHere + node.children.reduce((sum, child) => sum + countFailingNodes(child), 0)
 }
 
 export default function App() {
   const [trees, setTrees] = useState<Node[] | null>(null)
   const [cardView, setCardView] = useState(false)
-  const [showAll, setShowAll] = useState(false)
-  const [statusFilter, setStatusFilter] = useState(['PASS', 'FAIL', 'N/A'])
+  const [showAll, setShowAll] = useState(true)
+  const [statusFilter, setStatusFilter] = useState(['FAIL'])
   const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [fadingIds, setFadingIds] = useState<Set<number>>(new Set())
+  const fadeTimeouts = useRef<{[id: number]: number}>({})
 
   const loadTree = async () => {
     const data = await fetch('http://localhost:8001/').then(r => r.json())
@@ -117,25 +112,81 @@ export default function App() {
 
   const handleOverride = async (nodeId: number, newStatus: string) => {
     if (!trees || trees.length === 0) return
-    // Find the tree containing the node
+    
+    // Find which tree contains this node
     const findTree = (trees: Node[]) => trees.find(t => {
       const search = (n: Node): boolean => n.id === nodeId || n.children.some(search)
       return search(t)
     })
     const tree = findTree(trees)
     if (!tree) return
+    
+    // Determine endpoint based on whether node has children
     const hasChildren = (node: Node): boolean => {
       if (node.id === nodeId) return node.children.length > 0
       return node.children.some(hasChildren)
     }
     const endpoint = hasChildren(tree) ? 'cascade_override' : 'override'
+    
+    // Get updated tree from backend
     const updatedTree = await fetch(`http://localhost:8001/${endpoint}/${nodeId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: newStatus })
     }).then(r => r.json())
-    // If showing all, reload all; else reload one
-    showAll ? loadAllTrees() : setTrees([updatedTree])
+    
+    // Update trees immediately to show new status
+    const newTrees = showAll ? await fetch('http://localhost:8001/all').then(r => r.json()) : [updatedTree]
+    setTrees(newTrees)
+    
+    // Helper function to collect all node IDs that will be affected (including children for cascade)
+    const collectAffectedIds = (node: Node, targetId: number, affectedIds: Set<number> = new Set()): Set<number> => {
+      if (node.id === targetId) {
+        affectedIds.add(node.id)
+        // If this is a cascade override, also collect all children
+        if (endpoint === 'cascade_override') {
+          node.children.forEach(child => collectAffectedIds(child, child.id, affectedIds))
+        }
+        return affectedIds
+      }
+      node.children.forEach(child => collectAffectedIds(child, targetId, affectedIds))
+      return affectedIds
+    }
+    
+    // Check if any affected nodes will be filtered out
+    const affectedIds = collectAffectedIds(tree, nodeId)
+    const nodesToFade = Array.from(affectedIds).filter(id => {
+      // Find the node in the updated tree to get its new status
+      const findNodeById = (nodes: Node[]): Node | null => {
+        for (const node of nodes) {
+          if (node.id === id) return node
+          const found = findNodeById(node.children)
+          if (found) return found
+        }
+        return null
+      }
+      const node = findNodeById(newTrees)
+      if (!node) return false
+      const nodeStatus = node.status || 'N/A'
+      return !statusFilter.includes(nodeStatus)
+    })
+    
+    if (nodesToFade.length > 0) {
+      // Add all affected nodes to fading state
+      setFadingIds(prev => new Set([...prev, ...nodesToFade]))
+      
+      // Remove from fading state after animation completes
+      nodesToFade.forEach(id => {
+        if (fadeTimeouts.current[id]) clearTimeout(fadeTimeouts.current[id])
+        fadeTimeouts.current[id] = setTimeout(() => {
+          setFadingIds(prev => {
+            const next = new Set(prev)
+            next.delete(id)
+            return next
+          })
+        }, 1500) // Match the CSS transition duration (1.5 seconds)
+      })
+    }
   }
 
   useEffect(() => {
@@ -145,9 +196,37 @@ export default function App() {
 
   if (!trees) return <div>Loading...</div>
 
-  // Filter for selected statuses
+  // Filter for selected statuses, but always include nodes that are fading out
+  function filterWithFading(node: Node, statuses: string[], fadingIds: Set<number>): Node | null {
+    const status = node.status || 'N/A'
+    
+    // Always include nodes that are fading out
+    if (fadingIds.has(node.id)) {
+      return {
+        ...node,
+        children: node.children.map(child => filterWithFading(child, statuses, fadingIds)).filter(Boolean) as Node[],
+      }
+    }
+    
+    // Normal filtering logic
+    if (statuses.includes(status)) {
+      return {
+        ...node,
+        children: node.children.map(child => filterWithFading(child, statuses, fadingIds)).filter(Boolean) as Node[],
+      }
+    }
+    
+    // If any child matches, include this node for context
+    const filteredChildren = node.children.map(child => filterWithFading(child, statuses, fadingIds)).filter(Boolean) as Node[]
+    if (filteredChildren.length > 0) {
+      return { ...node, children: filteredChildren }
+    }
+    
+    return null
+  }
+
   const displayTrees = trees
-    .map(tree => filterByStatus(tree, statusFilter))
+    .map(tree => filterWithFading(tree, statusFilter, fadingIds))
     .filter(Boolean) as Node[]
 
   // Count nodes for filter labels
@@ -217,14 +296,14 @@ export default function App() {
           </div>
         )}
       </div>
-      <div style={{ marginTop: 16 }}>
+      <div style={{ marginTop: 16 }} className="tree-container">
         {displayTrees.length === 0 ? (
           <div>No nodes found for selected filter.</div>
         ) : (
           displayTrees.map(tree => (
             cardView
-              ? renderNodeCard(tree, handleOverride)
-              : renderNodeTabbed(tree, handleOverride)
+              ? renderNodeCard(tree, handleOverride, 0, fadingIds)
+              : renderNodeTabbed(tree, handleOverride, 0, fadingIds)
           ))
         )}
       </div>
