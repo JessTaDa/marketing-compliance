@@ -53,43 +53,64 @@ function renderNodeCard(node: Node, onOverride: (id: number, status: string) => 
 }
 
 export default function App() {
-  const [tree, setTree] = useState<Node | null>(null)
+  const [trees, setTrees] = useState<Node[] | null>(null)
   const [cardView, setCardView] = useState(false)
+  const [showAll, setShowAll] = useState(false)
 
   const loadTree = async () => {
     const data = await fetch('http://localhost:8001/').then(r => r.json())
-    setTree(data)
+    setTrees([data])
+  }
+
+  const loadAllTrees = async () => {
+    const data = await fetch('http://localhost:8001/all').then(r => r.json())
+    setTrees(data)
   }
 
   const handleOverride = async (nodeId: number, newStatus: string) => {
+    if (!trees || trees.length === 0) return
+    // Find the tree containing the node
+    const findTree = (trees: Node[]) => trees.find(t => {
+      const search = (n: Node): boolean => n.id === nodeId || n.children.some(search)
+      return search(t)
+    })
+    const tree = findTree(trees)
+    if (!tree) return
     const hasChildren = (node: Node): boolean => {
       if (node.id === nodeId) return node.children.length > 0
       return node.children.some(hasChildren)
     }
-    const endpoint = hasChildren(tree!) ? 'cascade_override' : 'override'
+    const endpoint = hasChildren(tree) ? 'cascade_override' : 'override'
     const updatedTree = await fetch(`http://localhost:8001/${endpoint}/${nodeId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: newStatus })
     }).then(r => r.json())
-    setTree(updatedTree)
+    // If showing all, reload all; else reload one
+    showAll ? loadAllTrees() : setTrees([updatedTree])
   }
 
-  useEffect(() => { loadTree() }, [])
+  useEffect(() => {
+    showAll ? loadAllTrees() : loadTree()
+    // eslint-disable-next-line
+  }, [showAll])
 
-  if (!tree) return <div>Loading...</div>
+  if (!trees) return <div>Loading...</div>
 
   return (
     <div>
       <h1>Compliance Analysis</h1>
-      <button onClick={loadTree}>Load New Tree</button>
+      <button onClick={() => { setShowAll(false); loadTree(); }}>Show Random Tree</button>
+      <button onClick={() => { setShowAll(true); loadAllTrees(); }} style={{ marginLeft: 8 }}>Show All Trees</button>
       <button onClick={() => setCardView(v => !v)} style={{ marginLeft: 8 }}>
         Switch to {cardView ? 'Tabbed' : 'Card'} View
       </button>
       <div style={{ marginTop: 16 }}>
-        {cardView
-          ? renderNodeCard(tree, handleOverride)
-          : renderNodeTabbed(tree, handleOverride)}
+        {trees.map(tree => (
+          cardView
+            ? renderNodeCard(tree, handleOverride)
+            : renderNodeTabbed(tree, handleOverride)
+        ))}
       </div>
     </div>
   )
