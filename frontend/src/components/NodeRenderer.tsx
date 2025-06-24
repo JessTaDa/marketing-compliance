@@ -44,7 +44,11 @@ export function NodeRenderer({
     marginBottom: 16,
     padding: 16,
     borderRadius: 10,
-    background: darkTheme.card,
+    background: node.status === 'PASS'
+      ? 'rgba(76, 220, 128, 0.18)'
+      : node.status === 'FAIL'
+        ? 'rgba(248, 113, 113, 0.18)'
+        : darkTheme.card,
     boxShadow: darkTheme.shadow,
     border: `1px solid ${darkTheme.border}`,
     color: darkTheme.text,
@@ -57,23 +61,33 @@ export function NodeRenderer({
         {hasChildren && (
           <span style={{ cursor: 'pointer', marginRight: 8, color: darkTheme.subtitle, fontSize: '1.1em' }} onClick={() => toggleExpand(node.id)}>{arrow}</span>
         )}
-        <span style={{ fontSize: '1.3em', color: statusColor, marginRight: 10 }}>{icon} <span style={{ fontSize: '0.9em', color: darkTheme.subtitle, marginLeft: 4 }}>({passCount}/{totalCount})</span></span>
+        <span style={{ fontSize: '1.3em', marginRight: 10 }}>
+          {node.status === 'PASS' ? (
+            <svg width="1.45em" height="1.45em" viewBox="0 0 20 20" style={{ display: 'inline', verticalAlign: 'middle' }}>
+              <path d="M6 10.8l3 3.2 5-6.2" stroke={darkTheme.pass} strokeWidth="2.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          ) : node.status === 'FAIL' ? (
+            <svg width="1.45em" height="1.45em" viewBox="0 0 20 20" style={{ display: 'inline', verticalAlign: 'middle' }}>
+              <line x1="6" y1="6" x2="14" y2="14" stroke={darkTheme.fail} strokeWidth="2.8" strokeLinecap="round" />
+              <line x1="14" y1="6" x2="6" y2="14" stroke={darkTheme.fail} strokeWidth="2.8" strokeLinecap="round" />
+            </svg>
+          ) : (
+            '⬤'
+          )}
+          <span style={{ fontSize: '0.9em', color: darkTheme.subtitle, marginLeft: 4 }}>({passCount}/{totalCount})</span>
+        </span>
         <span style={{ fontWeight: 600, marginRight: 8 }}>ID: {node.id}</span>
-        <span style={{ fontWeight: 600, marginRight: 8 }}>{node.type}</span>
-        <span style={{ marginRight: 8 }}>{node.name}</span>
+        <span style={{ fontWeight: 600, marginRight: 14 }}>{node.type}</span>
+        <span style={{ marginRight: 14, color: node.name === 'Root Node' ? darkTheme.shadow : undefined }}>{node.name}</span>
         <span style={{
           fontWeight: 800,
           fontSize: '1.25em',
           color: statusColor,
-          background: 'rgba(76, 220, 128, 0.08)', // subtle green for PASS, will be overridden for FAIL
-          borderRadius: 16,
-          padding: '2px 18px',
           marginLeft: 'auto',
           marginRight: 8,
-          border: `2px solid ${statusColor}`,
-          letterSpacing: 1,
-          boxShadow: '0 1px 4px 0 rgba(0,0,0,0.04)',
-          ...(node.status === 'FAIL' && { background: 'rgba(248, 113, 113, 0.08)' }),
+          userSelect: 'none',
+          cursor: 'default',
+          display: 'inline-block',
         }}>{node.status || 'N/A'}</span>
         {node.status === null && (
           <>

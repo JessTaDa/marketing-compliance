@@ -27,7 +27,10 @@ export default function App() {
     .filter(Boolean)
 
   return (
-    <div>
+    <div style={{ padding: '0 48px' }}>
+      <div style={{ fontSize: '2.1em', fontWeight: 900, letterSpacing: 1, margin: '24px 0 10px 0', color: darkTheme.text, textAlign: 'center' }}>
+        Marketing Compliance Analyzer
+      </div>
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
         <button
           onClick={() => { setShowAll(false); loadTree(); }}
