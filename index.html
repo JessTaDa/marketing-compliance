@@ -10,20 +10,26 @@
   <script>
     // Fetch and render the tree
     async function fetchTree() {
-      const res = await fetch('http://localhost:8001/');
+      const treeDiv = document.getElementById('tree');
+      treeDiv.innerHTML = '';
+      const res = await fetch('http://localhost:8001/all');
       if (!res.ok) {
-        document.getElementById('tree').innerText = 'Failed to fetch tree.';
+        treeDiv.innerText = 'Failed to fetch tree.';
         return;
       }
       const data = await res.json();
-      renderTree(data, document.getElementById('tree'));
+      data.forEach(root => renderTree(root, treeDiv));
     }
 
     // Render the tree recursively
     function renderTree(node, container) {
       const nodeDiv = document.createElement('div');
       nodeDiv.style.marginLeft = '20px';
-      nodeDiv.innerHTML = `<b>${node.type}</b> (id: ${node.id}): ${node.name} | Status: <span id="status-${node.id}">${node.status ?? 'N/A'}</span>`;
+      // Color status: green for PASS, red for FAIL
+      let statusColor = 'black';
+      if (node.status === 'PASS') statusColor = 'green';
+      if (node.status === 'FAIL') statusColor = 'red';
+      nodeDiv.innerHTML = `<b>${node.type}</b> (id: ${node.id}): ${node.name} | Status: <span id="status-${node.id}" style="color:${statusColor}">${node.status ?? 'N/A'}</span>`;
       // Add override button for each node
       if (node.status) {
         const btn = document.createElement('button');
@@ -33,6 +39,7 @@
           const newStatus = node.status === 'PASS' ? 'FAIL' : 'PASS';
           await overrideStatus(node.id, newStatus);
           await fetchTree();
+          btn.disabled = false;
         };
         nodeDiv.appendChild(btn);
       }

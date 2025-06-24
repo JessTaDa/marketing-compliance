@@ -135,7 +135,6 @@ def update_node_status(db: Session, node_id: int, new_status: StatusEnum) -> Nod
     if not node:
         raise HTTPException(status_code=404, detail="Node not found")
     old_status = node.status
-    # Update the node's status
     node.status = new_status
     db.add(NodeStatusChange(node_id=node.id, old_status=old_status, new_status=new_status, changed_at=datetime.utcnow()))
     db.commit()
@@ -150,6 +149,12 @@ def update_node_status(db: Session, node_id: int, new_status: StatusEnum) -> Nod
             db.add(NodeStatusChange(node_id=current.id, old_status=old_parent_status, new_status=new_parent_status, changed_at=datetime.utcnow()))
             db.commit()
         current = current.parent
+    # Refresh the node and its parent chain from the DB to ensure latest status
+    db.refresh(node)
+    parent = node.parent
+    while parent:
+        db.refresh(parent)
+        parent = parent.parent
     return node
 
 
@@ -199,6 +204,18 @@ def override_node_status(
         root_node = root_node.parent
     
     return NodeResponse.from_orm(root_node)
+
+
+@app.get(
+    "/all",
+    response_model=list[NodeResponse],
+    summary="Get all root nodes and their trees",
+    description="Return all root nodes and their full trees.",
+    operation_id="getAllNodes",
+)
+def get_all_trees(db: Session = Depends(get_db)) -> list[NodeResponse]:
+    roots = db.query(Node).filter(Node.type == NodeTypeEnum.ROOT).all()
+    return [NodeResponse.from_orm(root) for root in roots]
 
 if __name__ == "__main__":
     import uvicorn
