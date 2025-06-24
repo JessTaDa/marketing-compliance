@@ -20,10 +20,17 @@ function renderNodeTabbed(node: Node, onOverride: (id: number, status: string) =
   return (
     <div key={node.id} style={{ marginLeft: depth * 20 }}>
       {node.type}: {node.name} (id: {node.id}) | <span style={{ color: statusColor }}>{node.status || 'N/A'}</span>
-      {node.status && (
-        <button onClick={() => onOverride(node.id, node.status === 'PASS' ? 'FAIL' : 'PASS')}>
-          Set {node.status === 'PASS' ? 'FAIL' : 'PASS'}
-        </button>
+      {node.status === null && (
+        <>
+          <button onClick={() => onOverride(node.id, 'PASS')} style={{ marginLeft: 8 }}>Set PASS</button>
+          <button onClick={() => onOverride(node.id, 'FAIL')} style={{ marginLeft: 4 }}>Set FAIL</button>
+        </>
+      )}
+      {node.status === 'PASS' && (
+        <button onClick={() => onOverride(node.id, 'FAIL')} style={{ marginLeft: 8 }}>Set FAIL</button>
+      )}
+      {node.status === 'FAIL' && (
+        <button onClick={() => onOverride(node.id, 'PASS')} style={{ marginLeft: 8 }}>Set PASS</button>
       )}
       {node.children.map(child => renderNodeTabbed(child, onOverride, depth + 1))}
     </div>
@@ -46,10 +53,17 @@ function renderNodeCard(node: Node, onOverride: (id: number, status: string) => 
       <div>
         <strong>{node.type}</strong>: {node.name} (id: {node.id}) |{' '}
         <span style={{ color: statusColor }}>{node.status || 'N/A'}</span>
-        {node.status && (
-          <button onClick={() => onOverride(node.id, node.status === 'PASS' ? 'FAIL' : 'PASS')} style={{ marginLeft: 8 }}>
-            Set {node.status === 'PASS' ? 'FAIL' : 'PASS'}
-          </button>
+        {node.status === null && (
+          <>
+            <button onClick={() => onOverride(node.id, 'PASS')} style={{ marginLeft: 8 }}>Set PASS</button>
+            <button onClick={() => onOverride(node.id, 'FAIL')} style={{ marginLeft: 4 }}>Set FAIL</button>
+          </>
+        )}
+        {node.status === 'PASS' && (
+          <button onClick={() => onOverride(node.id, 'FAIL')} style={{ marginLeft: 8 }}>Set FAIL</button>
+        )}
+        {node.status === 'FAIL' && (
+          <button onClick={() => onOverride(node.id, 'PASS')} style={{ marginLeft: 8 }}>Set PASS</button>
         )}
       </div>
       {node.children.map(child => renderNodeCard(child, onOverride, depth + 1))}
