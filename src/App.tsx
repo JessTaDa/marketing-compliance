@@ -1,9 +1,5 @@
 import React, { useState, useEffect } from 'react'
 
-// Types matching the backend
-type Status = 'PASS' | 'FAIL'
-type NodeType = 'SUB_CHECK' | 'CHECK' | 'ROOT'
-
 interface Node {
   id: number
   type: string
@@ -12,11 +8,12 @@ interface Node {
   children: Node[]
 }
 
-// Render a single node and its children
 function renderNode(node: Node, onOverride: (id: number, status: string) => void, depth = 0) {
+  const statusColor = node.status === 'PASS' ? 'green' : node.status === 'FAIL' ? 'red' : 'gray'
+  
   return (
     <div key={node.id} style={{ marginLeft: depth * 20 }}>
-      {node.type}: {node.name} | {node.status || 'N/A'}
+      {node.type}: {node.name} | <span style={{ color: statusColor }}>{node.status || 'N/A'}</span>
       {node.status && (
         <button onClick={() => onOverride(node.id, node.status === 'PASS' ? 'FAIL' : 'PASS')}>
           Set {node.status === 'PASS' ? 'FAIL' : 'PASS'}
@@ -30,15 +27,19 @@ function renderNode(node: Node, onOverride: (id: number, status: string) => void
 export default function App() {
   const [tree, setTree] = useState<Node | null>(null)
 
-  // Load tree from backend
   const loadTree = async () => {
     const data = await fetch('http://localhost:8001/').then(r => r.json())
     setTree(data)
   }
 
-  // Override node status
   const handleOverride = async (nodeId: number, newStatus: string) => {
-    const updatedTree = await fetch(`http://localhost:8001/override/${nodeId}`, {
+    const hasChildren = (node: Node): boolean => {
+      if (node.id === nodeId) return node.children.length > 0
+      return node.children.some(hasChildren)
+    }
+    
+    const endpoint = hasChildren(tree!) ? 'cascade_override' : 'override'
+    const updatedTree = await fetch(`http://localhost:8001/${endpoint}/${nodeId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: newStatus })
@@ -46,9 +47,7 @@ export default function App() {
     setTree(updatedTree)
   }
 
-  useEffect(() => {
-    loadTree()
-  }, [])
+  useEffect(() => { loadTree() }, [])
 
   if (!tree) return <div>Loading...</div>
 
