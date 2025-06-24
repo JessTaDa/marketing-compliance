@@ -31,48 +31,23 @@ if (!document.getElementById(fadeStyleId)) {
   document.head.appendChild(style)
 }
 
-function renderNodeTabbed(node: Node, onOverride: (id: number, status: string) => void, depth = 0, fadingIds: Set<number> = new Set()) {
+function renderNodeTabbed(node: Node, onOverride: (id: number, status: string) => void, depth = 0, fadingIds: Set<number> = new Set(), expanded: Set<number>, toggleExpand: (id: number) => void) {
   const statusColor = node.status === 'PASS' ? 'green' : node.status === 'FAIL' ? 'red' : 'gray'
+  const icon = node.status === 'PASS' ? '✔️' : node.status === 'FAIL' ? '❌' : '⬤'
   const fadeClass = fadingIds.has(node.id) ? 'fade-out' : ''
+  const hasChildren = node.children.length > 0
+  const isExpanded = expanded.has(node.id)
+  const arrow = hasChildren ? (isExpanded ? '▼' : '▶') : null
   console.log("rerunning renderNodeTabbed ", node.id)
   return (
     <div key={node.id} style={{ marginLeft: depth * 20 }} className={fadeClass}>
-      {node.type}: {node.name} (id: {node.id}) | <span style={{ color: statusColor }}>{node.status || 'N/A'}</span>
-      {node.status === null && (
-        <>
-          <button onClick={() => onOverride(node.id, 'PASS')} style={{ marginLeft: 8 }}>Set PASS</button>
-          <button onClick={() => onOverride(node.id, 'FAIL')} style={{ marginLeft: 4 }}>Set FAIL</button>
-        </>
-      )}
-      {node.status === 'PASS' && (
-        <button onClick={() => onOverride(node.id, 'FAIL')} style={{ marginLeft: 8 }}>Set FAIL</button>
-      )}
-      {node.status === 'FAIL' && (
-        <button onClick={() => onOverride(node.id, 'PASS')} style={{ marginLeft: 8 }}>Set PASS</button>
-      )}
-      {node.children.map(child => renderNodeTabbed(child, onOverride, depth + 1, fadingIds))}
-    </div>
-  )
-}
-
-function renderNodeCard(node: Node, onOverride: (id: number, status: string) => void, depth = 0, fadingIds: Set<number> = new Set()) {
-  const statusColor = node.status === 'PASS' ? 'green' : node.status === 'FAIL' ? 'red' : 'gray'
-  const cardStyle = {
-    marginLeft: depth * 10,
-    marginBottom: 10,
-    padding: 10,
-    border: '1px solid #ddd',
-    borderRadius: 6,
-    background: bgColors[depth % bgColors.length],
-    boxShadow: depth === 0 ? '0 2px 8px #eee' : undefined,
-  } as React.CSSProperties
-  const fadeClass = fadingIds.has(node.id) ? 'fade-out' : ''
-  console.log("rerunning renderNodeCard ", node.id)
-  return (
-    <div key={node.id} style={cardStyle} className={fadeClass}>
-      <div>
-        <strong>{node.type}</strong>: {node.name} (id: {node.id}) |{' '}
-        <span style={{ color: statusColor }}>{node.status || 'N/A'}</span>
+      <div style={{ display: 'flex', alignItems: 'center' }}>
+        {hasChildren && (
+          <span style={{ cursor: 'pointer', marginRight: 4 }} onClick={() => toggleExpand(node.id)}>{arrow}</span>
+        )}
+        <span style={{ fontSize: '1.3em', color: statusColor, marginRight: 8 }}>{icon}</span>
+        <span>{node.type}: {node.name}</span>
+        <span style={{ color: statusColor, marginLeft: 8 }}>{node.status || 'N/A'}</span>
         {node.status === null && (
           <>
             <button onClick={() => onOverride(node.id, 'PASS')} style={{ marginLeft: 8 }}>Set PASS</button>
@@ -86,7 +61,57 @@ function renderNodeCard(node: Node, onOverride: (id: number, status: string) => 
           <button onClick={() => onOverride(node.id, 'PASS')} style={{ marginLeft: 8 }}>Set PASS</button>
         )}
       </div>
-      {node.children.map(child => renderNodeCard(child, onOverride, depth + 1, fadingIds))}
+      <div style={{ fontSize: '0.85em', color: '#888', marginLeft: 28, marginTop: 2 }}>
+        ID: {node.id} | Reason: {'reason' in node ? (node as any).reason || 'N/A' : 'N/A'}
+      </div>
+      {isExpanded && node.children.map(child => renderNodeTabbed(child, onOverride, depth + 1, fadingIds, expanded, toggleExpand))}
+    </div>
+  )
+}
+
+function renderNodeCard(node: Node, onOverride: (id: number, status: string) => void, depth = 0, fadingIds: Set<number> = new Set(), expanded: Set<number>, toggleExpand: (id: number) => void) {
+  const statusColor = node.status === 'PASS' ? 'green' : node.status === 'FAIL' ? 'red' : 'gray'
+  const icon = node.status === 'PASS' ? '✔️' : node.status === 'FAIL' ? '❌' : '⬤'
+  const cardStyle = {
+    marginLeft: depth * 10,
+    marginBottom: 10,
+    padding: 10,
+    border: '1px solid #ddd',
+    borderRadius: 6,
+    background: bgColors[depth % bgColors.length],
+    boxShadow: depth === 0 ? '0 2px 8px #eee' : undefined,
+  } as React.CSSProperties
+  const fadeClass = fadingIds.has(node.id) ? 'fade-out' : ''
+  const hasChildren = node.children.length > 0
+  const isExpanded = expanded.has(node.id)
+  const arrow = hasChildren ? (isExpanded ? '▼' : '▶') : null
+  console.log("rerunning renderNodeCard ", node.id)
+  return (
+    <div key={node.id} style={cardStyle} className={fadeClass}>
+      <div style={{ display: 'flex', alignItems: 'center' }}>
+        {hasChildren && (
+          <span style={{ cursor: 'pointer', marginRight: 4 }} onClick={() => toggleExpand(node.id)}>{arrow}</span>
+        )}
+        <span style={{ fontSize: '1.3em', color: statusColor, marginRight: 8 }}>{icon}</span>
+        <span><strong>{node.type}</strong>: {node.name}</span>
+        <span style={{ color: statusColor, marginLeft: 8 }}>{node.status || 'N/A'}</span>
+        {node.status === null && (
+          <>
+            <button onClick={() => onOverride(node.id, 'PASS')} style={{ marginLeft: 8 }}>Set PASS</button>
+            <button onClick={() => onOverride(node.id, 'FAIL')} style={{ marginLeft: 4 }}>Set FAIL</button>
+          </>
+        )}
+        {node.status === 'PASS' && (
+          <button onClick={() => onOverride(node.id, 'FAIL')} style={{ marginLeft: 8 }}>Set FAIL</button>
+        )}
+        {node.status === 'FAIL' && (
+          <button onClick={() => onOverride(node.id, 'PASS')} style={{ marginLeft: 8 }}>Set PASS</button>
+        )}
+      </div>
+      <div style={{ fontSize: '0.85em', color: '#888', marginLeft: 28, marginTop: 2 }}>
+        ID: {node.id} | Reason: {'reason' in node ? (node as any).reason || 'N/A' : 'N/A'}
+      </div>
+      {isExpanded && node.children.map(child => renderNodeCard(child, onOverride, depth + 1, fadingIds, expanded, toggleExpand))}
     </div>
   )
 }
@@ -98,7 +123,17 @@ export default function App() {
   const [statusFilter, setStatusFilter] = useState(['FAIL'])
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [fadingIds, setFadingIds] = useState<Set<number>>(new Set())
+  const [expanded, setExpanded] = useState<Set<number>>(new Set())
   const fadeTimeouts = useRef<{[id: number]: number}>({})
+
+  const toggleExpand = (id: number) => {
+    setExpanded(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   const loadTree = async () => {
     const data = await fetch('http://localhost:8001/').then(r => r.json())
@@ -294,8 +329,8 @@ export default function App() {
         ) : (
           displayTrees.map(tree => (
             cardView
-              ? renderNodeCard(tree, handleOverride, 0, fadingIds)
-              : renderNodeTabbed(tree, handleOverride, 0, fadingIds)
+              ? renderNodeCard(tree, handleOverride, 0, fadingIds, expanded, toggleExpand)
+              : renderNodeTabbed(tree, handleOverride, 0, fadingIds, expanded, toggleExpand)
           ))
         )}
       </div>
