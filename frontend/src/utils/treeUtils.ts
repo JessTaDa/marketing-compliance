@@ -34,4 +34,20 @@ export function filterWithFading(node: Node, statuses: string[], fadingIds: Set<
   }
   
   return null
+}
+
+// Immutably update a node by id in a tree
+export function updateNodeInTree(tree: Node, updatedNode: Node): Node {
+  if (tree.id === updatedNode.id) {
+    return { ...updatedNode };
+  }
+  return {
+    ...tree,
+    children: tree.children.map(child => updateNodeInTree(child, updatedNode)),
+  };
+}
+
+// For multiple root nodes
+export function updateNodeInForest(forest: Node[], updatedNode: Node): Node[] {
+  return forest.map(tree => updateNodeInTree(tree, updatedNode));
 } 

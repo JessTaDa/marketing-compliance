@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { Node } from '../types'
 import { darkTheme, bgColors } from '../utils/styles'
 
@@ -8,65 +8,106 @@ interface NodeRendererProps {
   depth?: number
   expanded?: Set<number>
   toggleExpand?: (id: number) => void
-  cardView?: boolean
 }
 
+// This component is essential for rendering each node and handling local state for status updates.
 export function NodeRenderer({ 
   node, 
   onOverride, 
   depth = 0, 
   expanded = new Set(),
-  toggleExpand = () => {},
-  cardView = false
+  toggleExpand = () => {}
 }: NodeRendererProps) {
-  const statusColor = node.status === 'PASS' ? darkTheme.pass : node.status === 'FAIL' ? darkTheme.fail : darkTheme.na
-  const icon = node.status === 'PASS' ? '✔️' : node.status === 'FAIL' ? '❌' : '⬤'
-  
-  // Count pass and total nodes in this tree
-  const countPassAndTotal = (node: Node): [number, number] => {
-    let pass = node.status === 'PASS' ? 1 : 0
-    let total = 1
-    for (const child of node.children) {
-      const [cPass, cTotal] = countPassAndTotal(child)
-      pass += cPass
-      total += cTotal
-    }
-    return [pass, total]
-  }
-  const [passCount, totalCount] = countPassAndTotal(node)
-  
-  const hasChildren = node.children.length > 0
-  const isExpanded = expanded.has(node.id)
-  const arrow = hasChildren ? (isExpanded ? '▼' : '▶') : null
+  // Local state for status and last_updated_by_user for minimal re-rendering
+  const [status, setStatus] = useState(node.status)
+  const [lastUpdated, setLastUpdated] = useState(node.last_updated_by_user)
+  const [showCelebration, setShowCelebration] = useState(false)
 
-  const containerStyle = {
-    marginLeft: depth * 24,
-    marginBottom: 16,
-    padding: 16,
-    borderRadius: 10,
-    background: node.status === 'PASS'
-      ? 'rgba(76, 220, 128, 0.18)'
-      : node.status === 'FAIL'
-        ? 'rgba(248, 113, 113, 0.18)'
-        : darkTheme.card,
-    boxShadow: darkTheme.shadow,
-    border: `1px solid ${darkTheme.border}`,
-    color: darkTheme.text,
-    transition: 'background 0.2s, box-shadow 0.2s',
-  } as React.CSSProperties
+  // Sync local state with props if node.id changes (e.g., on reload)
+  useEffect(() => {
+    setStatus(node.status)
+    setLastUpdated(node.last_updated_by_user)
+  }, [node.id, node.status, node.last_updated_by_user])
+
+  // Memoize expensive calculations to prevent recalculation on every render
+  const { statusColor, icon, passCount, totalCount, hasChildren, isExpanded, arrow, containerStyle } = useMemo(() => {
+    const statusColor = status === 'PASS' ? darkTheme.pass : status === 'FAIL' ? darkTheme.fail : darkTheme.na
+    const icon = status === 'PASS' ? '✔️' : status === 'FAIL' ? '❌' : '⬤'
+    // Count pass and total nodes in this tree
+    const countPassAndTotal = (node: Node): [number, number] => {
+      let pass = node.status === 'PASS' ? 1 : 0
+      let total = 1
+      for (const child of node.children) {
+        const [cPass, cTotal] = countPassAndTotal(child)
+        pass += cPass
+        total += cTotal
+      }
+      return [pass, total]
+    }
+    const [passCount, totalCount] = countPassAndTotal(node)
+    const hasChildren = node.children.length > 0
+    const isExpanded = expanded.has(node.id)
+    const arrow = hasChildren ? (isExpanded ? '▼' : '▶') : null
+    const containerStyle = {
+      marginLeft: depth * 24,
+      marginBottom: 16,
+      padding: 16,
+      borderRadius: 10,
+      background: status === 'PASS'
+        ? 'rgba(76, 220, 128, 0.18)'
+        : status === 'FAIL'
+          ? 'rgba(248, 113, 113, 0.18)'
+          : darkTheme.card,
+      boxShadow: darkTheme.shadow,
+      border: `1px solid ${darkTheme.border}`,
+      color: darkTheme.text,
+      transition: 'background 0.2s, box-shadow 0.2s',
+    } as React.CSSProperties
+    return { statusColor, icon, passCount, totalCount, hasChildren, isExpanded, arrow, containerStyle }
+  }, [status, node, expanded, depth])
+
+  console.log(`rerender ${node.id}`)
+
+  // Minimal handler for status override: update local state and call backend
+  const handleLocalOverride = (newStatus: string) => {
+    setStatus(newStatus)
+    setLastUpdated(new Date().toISOString())
+    // Call backend, but do not update global tree state for MVP
+    fetch(`http://localhost:8001/override/${node.id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus })
+    }).catch(() => {
+      // Optionally revert local state on error (not required for MVP)
+    })
+  }
 
   return (
-    <div key={node.id} style={containerStyle}>
+    <div key={node.id} style={{ ...containerStyle, position: 'relative' }}>
+      {showCelebration && (
+        <span style={{
+          position: 'absolute',
+          right: 24,
+          top: 8,
+          fontSize: '2.2em',
+          opacity: 1,
+          animation: 'celebrate-fade 1s ease',
+          pointerEvents: 'none',
+          zIndex: 20
+        }}>
+          🎉
+        </span>
+      )}
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
         {hasChildren && (
           <span style={{ cursor: 'pointer', marginRight: 8, color: darkTheme.subtitle, fontSize: '1.1em' }} onClick={() => toggleExpand(node.id)}>{arrow}</span>
         )}
         <span style={{ fontSize: '1.3em', marginRight: 10 }}>
-          {node.status === 'PASS' ? (
+          {status === 'PASS' ? (
             <svg width="1.45em" height="1.45em" viewBox="0 0 20 20" style={{ display: 'inline', verticalAlign: 'middle' }}>
               <path d="M6 10.8l3 3.2 5-6.2" stroke={darkTheme.pass} strokeWidth="2.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-          ) : node.status === 'FAIL' ? (
+          ) : status === 'FAIL' ? (
             <svg width="1.45em" height="1.45em" viewBox="0 0 20 20" style={{ display: 'inline', verticalAlign: 'middle' }}>
               <line x1="6" y1="6" x2="14" y2="14" stroke={darkTheme.fail} strokeWidth="2.8" strokeLinecap="round" />
               <line x1="14" y1="6" x2="6" y2="14" stroke={darkTheme.fail} strokeWidth="2.8" strokeLinecap="round" />
@@ -88,23 +129,45 @@ export function NodeRenderer({
           userSelect: 'none',
           cursor: 'default',
           display: 'inline-block',
-        }}>{node.status || 'N/A'}</span>
-        {node.status === null && (
+        }}>{status || 'N/A'}</span>
+        {status === null && (
           <>
-            <button onClick={() => onOverride(node.id, 'PASS')} style={{ marginLeft: 8, padding: '6px 16px', borderRadius: 6, border: '1.5px solid #17824c', background: 'transparent', color: '#17824c', fontWeight: 500, cursor: 'pointer', outline: 'none', transition: 'all 0.15s' }}>Set PASS</button>
-            <button onClick={() => onOverride(node.id, 'FAIL')} style={{ marginLeft: 4, padding: '6px 16px', borderRadius: 6, border: '1.5px solid #a13a3a', background: 'transparent', color: '#a13a3a', fontWeight: 500, cursor: 'pointer', outline: 'none', transition: 'all 0.15s' }}>Set FAIL</button>
+            <span style={{ position: 'relative', display: 'inline-block' }}>
+              <button
+                onClick={() => {
+                  setShowCelebration(true);
+                  setTimeout(() => {
+                    setShowCelebration(false);
+                    handleLocalOverride('PASS');
+                  }, 1000);
+                }}
+                style={{ marginLeft: 8, padding: '6px 16px', borderRadius: 6, border: '1.5px solid #17824c', background: 'transparent', color: '#17824c', fontWeight: 500, cursor: 'pointer', outline: 'none', transition: 'all 0.15s' }}
+              >
+                Set PASS
+              </button>
+            </span>
+            <button onClick={() => handleLocalOverride('FAIL')} style={{ marginLeft: 4, padding: '6px 16px', borderRadius: 6, border: '1.5px solid #a13a3a', background: 'transparent', color: '#a13a3a', fontWeight: 500, cursor: 'pointer', outline: 'none', transition: 'all 0.15s' }}>Set FAIL</button>
           </>
         )}
-        {node.status === 'PASS' && (
-          <button onClick={() => onOverride(node.id, 'FAIL')} style={{ marginLeft: 8, padding: '6px 16px', borderRadius: 6, border: '1.5px solid #a13a3a', background: 'transparent', color: '#a13a3a', fontWeight: 500, cursor: 'pointer', outline: 'none', transition: 'all 0.15s' }}>Set FAIL</button>
+        {status === 'PASS' && (
+          <>
+            <span style={{ position: 'relative', display: 'inline-block' }}>
+              <button
+                onClick={() => handleLocalOverride('FAIL')}
+                style={{ marginLeft: 8, padding: '6px 16px', borderRadius: 6, border: '1.5px solid #a13a3a', background: 'transparent', color: '#a13a3a', fontWeight: 500, cursor: 'pointer', outline: 'none', transition: 'all 0.15s' }}
+              >
+                Set FAIL
+              </button>
+            </span>
+          </>
         )}
-        {node.status === 'FAIL' && (
-          <button onClick={() => onOverride(node.id, 'PASS')} style={{ marginLeft: 8, padding: '6px 16px', borderRadius: 6, border: '1.5px solid #17824c', background: 'transparent', color: '#17824c', fontWeight: 500, cursor: 'pointer', outline: 'none', transition: 'all 0.15s' }}>Set PASS</button>
+        {status === 'FAIL' && (
+          <button onClick={() => handleLocalOverride('PASS')} style={{ marginLeft: 8, padding: '6px 16px', borderRadius: 6, border: '1.5px solid #17824c', background: 'transparent', color: '#17824c', fontWeight: 500, cursor: 'pointer', outline: 'none', transition: 'all 0.15s' }}>Set PASS</button>
         )}
       </div>
       <div style={{ fontSize: '0.95em', color: darkTheme.subtitle, marginLeft: 32, marginTop: 2, marginBottom: 2, display: 'flex', alignItems: 'center' }}>
-        {node.last_updated_by_user && (
-          <span style={{ marginRight: 24 }}>Manually updated: {new Date(node.last_updated_by_user).toLocaleString()}</span>
+        {lastUpdated && (
+          <span style={{ marginRight: 24 }}>Manually updated: {new Date(lastUpdated).toLocaleString()}</span>
         )}
         <span>Reason: {'reason' in node ? (node as any).reason || 'N/A' : 'N/A'}</span>
       </div>
@@ -116,9 +179,40 @@ export function NodeRenderer({
           depth={depth + 1} 
           expanded={expanded}
           toggleExpand={toggleExpand}
-          cardView={cardView}
         />
       ))}
     </div>
   )
-} 
+}
+
+// Add animation keyframes for the celebration
+if (typeof window !== 'undefined' && !document.getElementById('celebrate-fade-style')) {
+  const style = document.createElement('style');
+  style.id = 'celebrate-fade-style';
+  style.innerHTML = `
+    @keyframes celebrate-fade {
+      0% { opacity: 0; transform: translateX(-50%) scale(0.7) translateY(10px); }
+      20% { opacity: 1; transform: translateX(-50%) scale(1.1) translateY(-6px); }
+      60% { opacity: 1; transform: translateX(-50%) scale(1) translateY(-10px); }
+      100% { opacity: 0; transform: translateX(-50%) scale(0.7) translateY(-30px); }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+// Memoized version to prevent unnecessary re-renders
+function areEqual(prevProps: NodeRendererProps, nextProps: NodeRendererProps) {
+  // Only re-render if the node object or expanded/toggleExpand/onOverride/props actually change
+  return (
+    prevProps.node === nextProps.node &&
+    prevProps.depth === nextProps.depth &&
+    prevProps.expanded === nextProps.expanded &&
+    prevProps.toggleExpand === nextProps.toggleExpand &&
+    prevProps.onOverride === nextProps.onOverride
+  );
+}
+
+export const MemoizedNodeRenderer = React.memo(NodeRenderer, areEqual);
+
+// For compatibility with existing imports
+export default MemoizedNodeRenderer; 

@@ -1,15 +1,33 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo, useCallback } from 'react'
 import { useTreeData } from './hooks/useTreeData'
 import { StatusFilter } from './components/StatusFilter'
-import { NodeRenderer } from './components/NodeRenderer'
+import { MemoizedNodeRenderer } from './components/NodeRenderer'
 import { filterWithFading } from './utils/treeUtils'
 import { darkTheme } from './utils/styles'
 
 export default function App() {
-  const [cardView, setCardView] = useState(false)
   const [statusFilter, setStatusFilter] = useState(['FAIL'])
   
   const { trees, showAll, setShowAll, expanded, toggleExpand, loadTree, loadAllTrees, handleOverride } = useTreeData(statusFilter)
+
+  // Memoize the expensive filtered trees calculation to prevent recalculation on every render
+  const displayTrees = useMemo(() => {
+    if (!trees) return []
+    return trees
+      .map(tree => filterWithFading(tree, statusFilter, new Set()))
+      .filter(Boolean)
+  }, [trees, statusFilter])
+
+  // Memoize event handlers to prevent child component re-renders
+  const handleShowRandomTree = useCallback(() => {
+    setShowAll(false)
+    loadTree()
+  }, [setShowAll, loadTree])
+
+  const handleShowAllTrees = useCallback(() => {
+    setShowAll(true)
+    loadAllTrees()
+  }, [setShowAll, loadAllTrees])
 
   // Minimal global dark theme styles
   React.useEffect(() => {
@@ -21,11 +39,6 @@ export default function App() {
 
   if (!trees) return <div>Loading...</div>
 
-  // Filter for selected statuses
-  const displayTrees = trees
-    .map(tree => filterWithFading(tree, statusFilter, new Set()))
-    .filter(Boolean)
-
   return (
     <div style={{ padding: '0 48px' }}>
       <div style={{ fontSize: '2.1em', fontWeight: 900, letterSpacing: 1, margin: '24px 0 10px 0', color: darkTheme.text, textAlign: 'center' }}>
@@ -33,7 +46,7 @@ export default function App() {
       </div>
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
         <button
-          onClick={() => { setShowAll(false); loadTree(); }}
+          onClick={handleShowRandomTree}
           style={{
             padding: '6px 16px',
             borderRadius: 6,
@@ -49,7 +62,7 @@ export default function App() {
           Show Random Tree
         </button>
         <button
-          onClick={() => { setShowAll(true); loadAllTrees(); }}
+          onClick={handleShowAllTrees}
           style={{
             padding: '6px 16px',
             borderRadius: 6,
@@ -75,14 +88,13 @@ export default function App() {
           <div>No nodes found for selected filter.</div>
         ) : (
           displayTrees.map(tree => (
-            <NodeRenderer 
+            <MemoizedNodeRenderer 
               key={tree.id}
               node={tree} 
               onOverride={handleOverride} 
               depth={0} 
               expanded={expanded}
               toggleExpand={toggleExpand}
-              cardView={cardView}
             />
           ))
         )}

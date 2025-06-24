@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { Node } from '../types'
 import { countNodesByStatus } from '../utils/treeUtils'
 
@@ -8,8 +8,19 @@ interface StatusFilterProps {
   setStatusFilter: React.Dispatch<React.SetStateAction<string[]>>
 }
 
-export function StatusFilter({ trees, statusFilter, setStatusFilter }: StatusFilterProps) {
+export const StatusFilter = React.memo(function StatusFilter({ trees, statusFilter, setStatusFilter }: StatusFilterProps) {
   const statuses = ['PASS', 'FAIL', 'N/A']
+  
+  // Memoize the expensive status counts calculation to prevent recalculation on every render
+  const statusCounts = useMemo(() => {
+    return Object.fromEntries(
+      statuses.map(status => [
+        status,
+        trees.reduce((sum, tree) => sum + countNodesByStatus(tree, [status]), 0)
+      ])
+    )
+  }, [trees, statuses])
+
   const getButtonStyle = (status: string) => {
     const selected = statusFilter.includes(status)
     if (status === 'PASS') {
@@ -27,16 +38,11 @@ export function StatusFilter({ trees, statusFilter, setStatusFilter }: StatusFil
       ? { background: '#A0A4AE', color: '#23272F', border: '2px solid #A0A4AE', fontWeight: 700 }
       : { background: '#23272F', color: '#A0A4AE', border: '1px solid #A0A4AE', fontWeight: 600 }
   }
+  
   const toggleStatus = (status: string) => {
     setStatusFilter(prev => prev.includes(status) ? prev.filter(s => s !== status) : [...prev, status])
   }
-  // Calculate counts for each status across all trees
-  const statusCounts = Object.fromEntries(
-    statuses.map(status => [
-      status,
-      trees.reduce((sum, tree) => sum + countNodesByStatus(tree, [status]), 0)
-    ])
-  )
+
   return (
     <div style={{ display: 'flex', gap: 8 }}>
       {statuses.map(status => (
@@ -57,4 +63,4 @@ export function StatusFilter({ trees, statusFilter, setStatusFilter }: StatusFil
       ))}
     </div>
   )
-} 
+}) 
