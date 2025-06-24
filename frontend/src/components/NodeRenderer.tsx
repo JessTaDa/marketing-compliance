@@ -65,18 +65,9 @@ export function NodeRenderer({
 
   console.log(`rerender ${node.id}`)
 
-  // Minimal handler for status override: update local state and call backend
+  // Minimal handler for status override: call backend and let response drive updates
   const handleLocalOverride = (newStatus: string) => {
-    setStatus(newStatus)
-    setLastUpdated(new Date().toISOString())
-    // Call backend, but do not update global tree state for MVP
-    fetch(`http://localhost:8001/override/${node.id}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: newStatus })
-    }).catch(() => {
-      // Optionally revert local state on error (not required for MVP)
-    })
+    onOverride(node.id, newStatus)
   }
 
   return (
@@ -113,7 +104,9 @@ export function NodeRenderer({
             ) : (
               '⬤'
             )}
-            <span style={{ fontSize: '0.9em', color: darkTheme.subtitle, marginLeft: 4 }}>({passCount}/{totalCount})</span>
+            <span style={{ fontSize: '0.9em', color: darkTheme.subtitle, marginLeft: 4 }}>
+              (<span style={{ color: darkTheme.pass, fontWeight: 700 }}>{passCount}</span>/{totalCount})
+            </span>
           </span>
           <span style={{ fontWeight: 600, marginRight: 8 }}>ID: {node.id}</span>
           <span style={{ fontWeight: 600, marginRight: 14 }}>{node.type}</span>

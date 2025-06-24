@@ -7,7 +7,6 @@ from typing import Optional
 from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import (
-    CheckConstraint,
     Column,
     DateTime,
     ForeignKey,
@@ -181,20 +180,33 @@ def update_node_status(db: Session, node_id: int, new_status: StatusEnum, is_use
         ))
         db.commit()
         
-        # Propagate changes up the tree (these are automatic, not user-initiated)
+        # Propagate changes up the tree
         current = node.parent
         while current:
-            should_pass = all(is_node_passing(child) for child in current.children)
-            new_parent_status = StatusEnum.PASS if should_pass else StatusEnum.FAIL
+            # Check if all direct children have status PASS
+            all_children_passing = all(child.status == StatusEnum.PASS for child in current.children)
+            # Check if any direct children have status FAIL
+            any_children_failing = any(child.status == StatusEnum.FAIL for child in current.children)
+            
+            # Determine new parent status
+            if any_children_failing:
+                new_parent_status = StatusEnum.FAIL
+            elif all_children_passing:
+                new_parent_status = StatusEnum.PASS
+            else:
+                new_parent_status = current.status  # Keep current status if some children are null
+            
             if current.status != new_parent_status:
                 old_parent_status = current.status
                 current.status = new_parent_status
+                # Mark as user change if all children are passing (auto-promotion)
+                user_timestamp = datetime.utcnow() if all_children_passing else None
                 db.add(NodeStatusChange(
                     node_id=current.id, 
                     old_status=old_parent_status, 
                     new_status=new_parent_status, 
                     changed_at=datetime.utcnow(),
-                    last_updated_by_user=None  # Automatic propagation, not user change
+                    last_updated_by_user=user_timestamp
                 ))
                 db.commit()
             current = current.parent

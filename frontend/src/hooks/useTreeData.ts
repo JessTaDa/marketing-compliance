@@ -35,33 +35,19 @@ export function useTreeData(statusFilter: string[]) {
   }, [])
 
   const handleOverride = useCallback(async (nodeId: number, newStatus: string) => {
-    if (!trees || trees.length === 0) return
-    
-    // Find which tree contains this node
-    const tree = trees.find(t => {
-      const search = (n: Node): boolean => n.id === nodeId || n.children.some(search)
-      return search(t)
-    })
-    if (!tree) return
-    
     try {
-      // Get updated node from backend
-      const updatedNode = await fetch(`http://localhost:8001/override/${nodeId}`, {
+      await fetch(`http://localhost:8001/override/${nodeId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus })
-      }).then(r => r.json())
-
-      // Only update the affected node in the tree(s)
-      if (showAll) {
-        setTrees(prev => prev ? updateNodeInForest(prev, updatedNode) : prev)
-      } else {
-        setTrees(prev => prev ? [updateNodeInTree(prev[0], updatedNode)] : prev)
-      }
+      })
+      
+      // Reload to get updated tree
+      showAll ? loadAllTrees() : loadTree()
     } catch (error) {
       console.error('Error overriding node:', error)
     }
-  }, [trees, showAll])
+  }, [showAll, loadAllTrees, loadTree])
 
   useEffect(() => {
     showAll ? loadAllTrees() : loadTree()
