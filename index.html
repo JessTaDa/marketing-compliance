@@ -1,101 +1,12 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Norm Compliance Tree Test</title>
-</head>
-<body>
-  <h1>Compliance Tree (MVP Test)</h1>
-  <div id="tree"></div>
-  <script>
-    // Fetch and render the tree
-    async function fetchTree() {
-      const treeDiv = document.getElementById('tree');
-      treeDiv.innerHTML = '';
-      const res = await fetch('http://localhost:8001/all');
-      if (!res.ok) {
-        treeDiv.innerText = 'Failed to fetch tree.';
-        return;
-      }
-      const data = await res.json();
-      data.forEach(root => renderTree(root, treeDiv));
-    }
-
-    // Render the tree recursively
-    function renderTree(node, container) {
-      const nodeDiv = document.createElement('div');
-      nodeDiv.style.marginLeft = '20px';
-      // Color status: green for PASS, red for FAIL
-      let statusColor = 'black';
-      if (node.status === 'PASS') statusColor = 'green';
-      if (node.status === 'FAIL') statusColor = 'red';
-      nodeDiv.innerHTML = `<b>${node.type}</b> (id: ${node.id}): ${node.name} | Status: <span id="status-${node.id}" style="color:${statusColor}">${node.status ?? 'N/A'}</span>`;
-      // Add override button for each node
-      if (node.status) {
-        const btn = document.createElement('button');
-        btn.innerText = node.status === 'PASS' ? 'Set FAIL' : 'Set PASS';
-        btn.onclick = async () => {
-          btn.disabled = true;
-          const newStatus = node.status === 'PASS' ? 'FAIL' : 'PASS';
-          // If node has children, show confirmation and use cascade endpoint
-          if (node.children && node.children.length > 0) {
-            const childIds = getDescendantIds(node);
-            let msg = `Are you sure you want to change the status of node ${node.id} to ${newStatus}?`;
-            if (childIds.length === 1) {
-              msg += ` This will also change the status of its child node ${childIds[0]} to ${newStatus}.`;
-            } else if (childIds.length > 1) {
-              msg += ` This will also change the status of its child nodes [${childIds.join(', ')}] to ${newStatus}.`;
-            }
-            if (confirm(msg)) {
-              await fetch(`http://localhost:8001/cascade_override/${node.id}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status: newStatus })
-              });
-              await fetchTree();
-              btn.disabled = false;
-              return;
-            } else {
-              btn.disabled = false;
-              return;
-            }
-          }
-          // Otherwise, use regular override
-          await overrideStatus(node.id, newStatus);
-          await fetchTree();
-          btn.disabled = false;
-        };
-        nodeDiv.appendChild(btn);
-      }
-      container.appendChild(nodeDiv);
-      // Render children
-      if (node.children && node.children.length > 0) {
-        node.children.forEach(child => renderTree(child, nodeDiv));
-      }
-    }
-
-    // Call override endpoint
-    async function overrideStatus(nodeId, newStatus) {
-      await fetch(`http://localhost:8001/override/${nodeId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus })
-      });
-    }
-
-    // Helper to collect all descendant IDs
-    function getDescendantIds(node) {
-      let ids = [];
-      if (node.children && node.children.length > 0) {
-        node.children.forEach(child => {
-          ids.push(child.id);
-          ids = ids.concat(getDescendantIds(child));
-        });
-      }
-      return ids;
-    }
-
-    fetchTree();
-  </script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Norm Compliance Analysis</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
 </html> 
