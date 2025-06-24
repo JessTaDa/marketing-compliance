@@ -37,6 +37,30 @@
         btn.onclick = async () => {
           btn.disabled = true;
           const newStatus = node.status === 'PASS' ? 'FAIL' : 'PASS';
+          // If node has children, show confirmation and use cascade endpoint
+          if (node.children && node.children.length > 0) {
+            const childIds = getDescendantIds(node);
+            let msg = `Are you sure you want to change the status of node ${node.id} to ${newStatus}?`;
+            if (childIds.length === 1) {
+              msg += ` This will also change the status of its child node ${childIds[0]} to ${newStatus}.`;
+            } else if (childIds.length > 1) {
+              msg += ` This will also change the status of its child nodes [${childIds.join(', ')}] to ${newStatus}.`;
+            }
+            if (confirm(msg)) {
+              await fetch(`http://localhost:8001/cascade_override/${node.id}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: newStatus })
+              });
+              await fetchTree();
+              btn.disabled = false;
+              return;
+            } else {
+              btn.disabled = false;
+              return;
+            }
+          }
+          // Otherwise, use regular override
           await overrideStatus(node.id, newStatus);
           await fetchTree();
           btn.disabled = false;
@@ -57,6 +81,18 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus })
       });
+    }
+
+    // Helper to collect all descendant IDs
+    function getDescendantIds(node) {
+      let ids = [];
+      if (node.children && node.children.length > 0) {
+        node.children.forEach(child => {
+          ids.push(child.id);
+          ids = ids.concat(getDescendantIds(child));
+        });
+      }
+      return ids;
     }
 
     fetchTree();

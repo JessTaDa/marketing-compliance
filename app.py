@@ -217,6 +217,57 @@ def get_all_trees(db: Session = Depends(get_db)) -> list[NodeResponse]:
     roots = db.query(Node).filter(Node.type == NodeTypeEnum.ROOT).all()
     return [NodeResponse.from_orm(root) for root in roots]
 
+
+def cascade_set_status(node: Node, new_status: StatusEnum, db: Session):
+    """Recursively set status for node and all descendants, and log each change."""
+    old_status = node.status
+    node.status = new_status
+    db.add(NodeStatusChange(node_id=node.id, old_status=old_status, new_status=new_status, changed_at=datetime.utcnow()))
+    for child in node.children:
+        cascade_set_status(child, new_status, db)
+
+
+@app.post(
+    "/cascade_override/{node_id}",
+    response_model=NodeResponse,
+    summary="Cascade Override Node Status",
+    description="Override the status of a node and all its descendants, then propagate changes up the tree.",
+    operation_id="cascadeOverrideNode",
+)
+def cascade_override_node_status(
+    node_id: int,
+    override_request: OverrideRequest,
+    db: Session = Depends(get_db)
+) -> NodeResponse:
+    node = db.query(Node).filter(Node.id == node_id).first()
+    if not node:
+        raise HTTPException(status_code=404, detail="Node not found")
+    cascade_set_status(node, override_request.status, db)
+    db.commit()
+    # Propagate changes up the tree
+    current = node.parent
+    while current:
+        should_pass = all(is_node_passing(child) for child in current.children)
+        new_parent_status = StatusEnum.PASS if should_pass else StatusEnum.FAIL
+        if current.status != new_parent_status:
+            old_parent_status = current.status
+            current.status = new_parent_status
+            db.add(NodeStatusChange(node_id=current.id, old_status=old_parent_status, new_status=new_parent_status, changed_at=datetime.utcnow()))
+            db.commit()
+        current = current.parent
+    # Refresh node and parent chain
+    db.refresh(node)
+    parent = node.parent
+    while parent:
+        db.refresh(parent)
+        parent = parent.parent
+    # Return the updated root
+    root_node = node
+    while root_node.parent:
+        root_node = root_node.parent
+    return NodeResponse.from_orm(root_node)
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8001)
