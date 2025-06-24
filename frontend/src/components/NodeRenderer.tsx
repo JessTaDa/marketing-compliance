@@ -6,22 +6,20 @@ interface NodeRendererProps {
   node: Node
   onOverride: (id: number, status: string) => void
   depth?: number
-  expanded?: Set<number>
-  toggleExpand?: (id: number) => void
 }
 
 // This component is essential for rendering each node and handling local state for status updates.
 export function NodeRenderer({ 
   node, 
   onOverride, 
-  depth = 0, 
-  expanded = new Set(),
-  toggleExpand = () => {}
+  depth = 0
 }: NodeRendererProps) {
   // Local state for status and last_updated_by_user for minimal re-rendering
   const [status, setStatus] = useState(node.status)
   const [lastUpdated, setLastUpdated] = useState(node.last_updated_by_user)
   const [showCelebration, setShowCelebration] = useState(false)
+  // Local expansion state
+  const [isExpanded, setIsExpanded] = useState(false)
 
   // Sync local state with props if node.id changes (e.g., on reload)
   useEffect(() => {
@@ -30,7 +28,7 @@ export function NodeRenderer({
   }, [node.id, node.status, node.last_updated_by_user])
 
   // Memoize expensive calculations to prevent recalculation on every render
-  const { statusColor, icon, passCount, totalCount, hasChildren, isExpanded, arrow, containerStyle } = useMemo(() => {
+  const { statusColor, icon, passCount, totalCount, hasChildren, arrow, containerStyle } = useMemo(() => {
     const statusColor = status === 'PASS' ? darkTheme.pass : status === 'FAIL' ? darkTheme.fail : darkTheme.na
     const icon = status === 'PASS' ? '✔️' : status === 'FAIL' ? '❌' : '⬤'
     // Count pass and total nodes in this tree
@@ -46,7 +44,6 @@ export function NodeRenderer({
     }
     const [passCount, totalCount] = countPassAndTotal(node)
     const hasChildren = node.children.length > 0
-    const isExpanded = expanded.has(node.id)
     const arrow = hasChildren ? (isExpanded ? '▼' : '▶') : null
     const containerStyle = {
       marginLeft: depth * 24,
@@ -63,8 +60,8 @@ export function NodeRenderer({
       color: darkTheme.text,
       transition: 'background 0.2s, box-shadow 0.2s',
     } as React.CSSProperties
-    return { statusColor, icon, passCount, totalCount, hasChildren, isExpanded, arrow, containerStyle }
-  }, [status, node, expanded, depth])
+    return { statusColor, icon, passCount, totalCount, hasChildren, arrow, containerStyle }
+  }, [status, node, isExpanded, depth])
 
   console.log(`rerender ${node.id}`)
 
@@ -100,7 +97,7 @@ export function NodeRenderer({
       )}
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
         {hasChildren && (
-          <span style={{ cursor: 'pointer', marginRight: 8, color: darkTheme.subtitle, fontSize: '1.1em' }} onClick={() => toggleExpand(node.id)}>{arrow}</span>
+          <span style={{ cursor: 'pointer', marginRight: 8, color: darkTheme.subtitle, fontSize: '1.1em' }} onClick={() => setIsExpanded(e => !e)}>{arrow}</span>
         )}
         <span style={{ fontSize: '1.3em', marginRight: 10 }}>
           {status === 'PASS' ? (
@@ -177,8 +174,6 @@ export function NodeRenderer({
           node={child} 
           onOverride={onOverride} 
           depth={depth + 1} 
-          expanded={expanded}
-          toggleExpand={toggleExpand}
         />
       ))}
     </div>
@@ -206,8 +201,6 @@ function areEqual(prevProps: NodeRendererProps, nextProps: NodeRendererProps) {
   return (
     prevProps.node === nextProps.node &&
     prevProps.depth === nextProps.depth &&
-    prevProps.expanded === nextProps.expanded &&
-    prevProps.toggleExpand === nextProps.toggleExpand &&
     prevProps.onOverride === nextProps.onOverride
   );
 }
