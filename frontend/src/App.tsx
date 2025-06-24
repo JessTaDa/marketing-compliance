@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react'
 import { useTreeData } from './hooks/useTreeData'
 import { StatusFilter } from './components/StatusFilter'
-import { MemoizedNodeRenderer } from './components/NodeRenderer'
+import NodeRenderer from './components/NodeRenderer'
 import { filterWithFading } from './utils/treeUtils'
 import { darkTheme } from './utils/styles'
 
@@ -98,7 +98,7 @@ export default function App() {
           <div>No nodes found for selected filter.</div>
         ) : (
           displayTrees.map(tree => (
-            <MemoizedNodeRenderer 
+            <NodeRenderer 
               key={tree.id}
               node={tree} 
               onOverride={handleOverride} 

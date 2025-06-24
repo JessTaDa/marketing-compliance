@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Node } from '../types'
-import { updateNodeInTree, updateNodeInForest } from '../utils/treeUtils'
 
 export function useTreeData(statusFilter: string[]) {
   const [trees, setTrees] = useState<Node[] | null>(null)
@@ -41,8 +40,6 @@ export function useTreeData(statusFilter: string[]) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus })
       })
-      
-      // Reload to get updated tree
       showAll ? loadAllTrees() : loadTree()
     } catch (error) {
       console.error('Error overriding node:', error)
