@@ -121,12 +121,8 @@ export default function App() {
     const tree = findTree(trees)
     if (!tree) return
     
-    // Determine endpoint based on whether node has children
-    const hasChildren = (node: Node): boolean => {
-      if (node.id === nodeId) return node.children.length > 0
-      return node.children.some(hasChildren)
-    }
-    const endpoint = hasChildren(tree) ? 'cascade_override' : 'override'
+    // Always use the 'override' endpoint
+    const endpoint = 'override'
     
     // Get updated tree from backend
     const updatedTree = await fetch(`http://localhost:8001/${endpoint}/${nodeId}`, {
@@ -139,21 +135,17 @@ export default function App() {
     const newTrees = showAll ? await fetch('http://localhost:8001/all').then(r => r.json()) : [updatedTree]
     setTrees(newTrees)
     
-    // Helper function to collect all node IDs that will be affected (including children for cascade)
+    // Helper function to collect only the affected node ID
     const collectAffectedIds = (node: Node, targetId: number, affectedIds: Set<number> = new Set()): Set<number> => {
       if (node.id === targetId) {
         affectedIds.add(node.id)
-        // If this is a cascade override, also collect all children
-        if (endpoint === 'cascade_override') {
-          node.children.forEach(child => collectAffectedIds(child, child.id, affectedIds))
-        }
         return affectedIds
       }
       node.children.forEach(child => collectAffectedIds(child, targetId, affectedIds))
       return affectedIds
     }
     
-    // Check if any affected nodes will be filtered out
+    // Check if the affected node will be filtered out
     const affectedIds = collectAffectedIds(tree, nodeId)
     const nodesToFade = Array.from(affectedIds).filter(id => {
       // Find the node in the updated tree to get its new status
@@ -172,7 +164,7 @@ export default function App() {
     })
     
     if (nodesToFade.length > 0) {
-      // Add all affected nodes to fading state
+      // Add the affected node to fading state
       setFadingIds(prev => new Set([...prev, ...nodesToFade]))
       
       // Remove from fading state after animation completes
