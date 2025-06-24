@@ -30,6 +30,13 @@ export function StatusFilter({ trees, statusFilter, setStatusFilter }: StatusFil
   const toggleStatus = (status: string) => {
     setStatusFilter(prev => prev.includes(status) ? prev.filter(s => s !== status) : [...prev, status])
   }
+  // Calculate counts for each status across all trees
+  const statusCounts = Object.fromEntries(
+    statuses.map(status => [
+      status,
+      trees.reduce((sum, tree) => sum + countNodesByStatus(tree, [status]), 0)
+    ])
+  )
   return (
     <div style={{ display: 'flex', gap: 8 }}>
       {statuses.map(status => (
@@ -45,7 +52,7 @@ export function StatusFilter({ trees, statusFilter, setStatusFilter }: StatusFil
             ...getButtonStyle(status),
           }}
         >
-          {status}
+          {status} <span style={{ fontWeight: 500, opacity: 0.85 }}>({statusCounts[status]})</span>
         </button>
       ))}
     </div>
