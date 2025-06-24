@@ -6,7 +6,8 @@ import { filterWithFading } from './utils/treeUtils'
 import { darkTheme } from './utils/styles'
 
 export default function App() {
-  const [statusFilter, setStatusFilter] = useState(['FAIL'])
+  // Set all statuses selected by default
+  const [statusFilter, setStatusFilter] = useState(['PASS', 'FAIL', 'N/A'])
   
   const { trees, showAll, setShowAll, expanded, toggleExpand, loadTree, loadAllTrees, handleOverride } = useTreeData(statusFilter)
 
@@ -28,6 +29,13 @@ export default function App() {
     setShowAll(true)
     loadAllTrees()
   }, [setShowAll, loadAllTrees])
+
+  // On mount, show all trees by default
+  React.useEffect(() => {
+    setShowAll(true)
+    loadAllTrees()
+    // eslint-disable-next-line
+  }, [])
 
   // Minimal global dark theme styles
   React.useEffect(() => {
