@@ -118,7 +118,7 @@ export function NodeRenderer({
           <span style={{ fontWeight: 600, marginRight: 8 }}>ID: {node.id}</span>
           <span style={{ fontWeight: 600, marginRight: 14 }}>{node.type}</span>
           <span style={{ marginRight: 14, color: node.name === 'Root Node' ? darkTheme.shadow : undefined }}>{node.name}</span>
-          <span style={{ fontWeight: 800, fontSize: '1.25em', color: statusColor, userSelect: 'none', cursor: 'default', display: 'inline-block' }}>{status || 'N/A'}</span>
+          <span style={{ fontWeight: 800, fontSize: '1.25em', color: statusColor, userSelect: 'none', cursor: 'default', display: 'inline-block' }}>{/* status || 'N/A' */}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {status === null && (
