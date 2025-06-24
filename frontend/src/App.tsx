@@ -48,11 +48,11 @@ export default function App() {
   if (!trees) return <div>Loading...</div>
 
   return (
-    <div style={{ padding: '0 48px' }}>
-      <div style={{ fontSize: '2.1em', fontWeight: 900, letterSpacing: 1, margin: '24px 0 10px 0', color: darkTheme.text, textAlign: 'center' }}>
+    <div style={{ padding: '40px 72px 32px 72px' }}>
+      <div style={{ fontSize: '2.1em', fontWeight: 900, letterSpacing: 1, margin: '24px 0 32px 0', color: darkTheme.text, textAlign: 'center' }}>
         Marketing Compliance Analyzer
       </div>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 24, justifyContent: 'center' }}>
         <button
           onClick={handleShowRandomTree}
           style={{
@@ -86,12 +86,14 @@ export default function App() {
           Show All Trees
         </button>
       </div>
-      <StatusFilter 
-        trees={trees} 
-        statusFilter={statusFilter} 
-        setStatusFilter={setStatusFilter} 
-      />
-      <div style={{ marginTop: 16 }} className="tree-container">
+      <div style={{ marginBottom: 28 }}>
+        <StatusFilter 
+          trees={trees} 
+          statusFilter={statusFilter} 
+          setStatusFilter={setStatusFilter} 
+        />
+      </div>
+      <div style={{ marginTop: 24 }} className="tree-container">
         {displayTrees.length === 0 ? (
           <div>No nodes found for selected filter.</div>
         ) : (
@@ -101,8 +103,6 @@ export default function App() {
               node={tree} 
               onOverride={handleOverride} 
               depth={0} 
-              expanded={expanded}
-              toggleExpand={toggleExpand}
             />
           ))
         )}
