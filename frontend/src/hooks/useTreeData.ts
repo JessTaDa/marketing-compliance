@@ -4,7 +4,6 @@ import { Node } from '../types'
 export function useTreeData(statusFilter: string[]) {
   const [trees, setTrees] = useState<Node[] | null>(null)
   const [showAll, setShowAll] = useState(true)
-  const [fadingIds, setFadingIds] = useState<Set<number>>(new Set())
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
 
   const loadTree = async () => {
@@ -55,31 +54,6 @@ export function useTreeData(statusFilter: string[]) {
       // Update trees immediately to show new status
       const newTrees = showAll ? await fetch('http://localhost:8001/all').then(r => r.json()) : [updatedTree]
       setTrees(newTrees)
-      
-      // Check if the affected node will be filtered out
-      const findNode = (nodes: Node[], id: number): Node | null => {
-        for (const node of nodes) {
-          if (node.id === id) return node
-          const found = findNode(node.children, id)
-          if (found) return found
-        }
-        return null
-      }
-      
-      const node = findNode(newTrees, nodeId)
-      if (node && !statusFilter.includes(node.status || 'N/A')) {
-        // Add to fading state
-        setFadingIds(prev => new Set([...prev, nodeId]))
-        
-        // Remove from fading state after animation completes
-        setTimeout(() => {
-          setFadingIds(prev => {
-            const next = new Set(prev)
-            next.delete(nodeId)
-            return next
-          })
-        }, 1500)
-      }
     } catch (error) {
       console.error('Error overriding node:', error)
     }
@@ -94,7 +68,6 @@ export function useTreeData(statusFilter: string[]) {
     trees,
     showAll,
     setShowAll,
-    fadingIds,
     expanded,
     toggleExpand,
     loadTree,

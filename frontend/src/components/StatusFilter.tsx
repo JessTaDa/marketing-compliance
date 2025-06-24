@@ -9,62 +9,45 @@ interface StatusFilterProps {
 }
 
 export function StatusFilter({ trees, statusFilter, setStatusFilter }: StatusFilterProps) {
-  const [dropdownOpen, setDropdownOpen] = useState(false)
-
-  // Count nodes for filter labels
-  const allNodeCount = trees.reduce((sum, t) => sum + countNodesByStatus(t, ['PASS', 'FAIL', 'N/A']), 0)
-  const passCount = trees.reduce((sum, t) => sum + countNodesByStatus(t, ['PASS']), 0)
-  const failCount = trees.reduce((sum, t) => sum + countNodesByStatus(t, ['FAIL']), 0)
-  const naCount = trees.reduce((sum, t) => sum + countNodesByStatus(t, ['N/A']), 0)
-
+  const statuses = ['PASS', 'FAIL', 'N/A']
+  const getButtonStyle = (status: string) => {
+    const selected = statusFilter.includes(status)
+    if (status === 'PASS') {
+      return selected
+        ? { background: '#4ADE80', color: '#23272F', border: '2px solid #4ADE80', fontWeight: 700 }
+        : { background: '#23272F', color: '#4ADE80', border: '1px solid #4ADE80', fontWeight: 600 }
+    }
+    if (status === 'FAIL') {
+      return selected
+        ? { background: '#F87171', color: '#23272F', border: '2px solid #F87171', fontWeight: 700 }
+        : { background: '#23272F', color: '#F87171', border: '1px solid #F87171', fontWeight: 600 }
+    }
+    // N/A
+    return selected
+      ? { background: '#A0A4AE', color: '#23272F', border: '2px solid #A0A4AE', fontWeight: 700 }
+      : { background: '#23272F', color: '#A0A4AE', border: '1px solid #A0A4AE', fontWeight: 600 }
+  }
+  const toggleStatus = (status: string) => {
+    setStatusFilter(prev => prev.includes(status) ? prev.filter(s => s !== status) : [...prev, status])
+  }
   return (
-    <div style={{ display: 'inline-block', position: 'relative', marginLeft: 8 }}>
-      <button onClick={() => setDropdownOpen(v => !v)}>
-        Filter Status
-      </button>
-      {dropdownOpen && (
-        <div style={{ position: 'absolute', zIndex: 10, background: '#fff', border: '1px solid #ccc', padding: 8, borderRadius: 4, minWidth: 160 }}>
-          <label style={{ display: 'block', marginBottom: 4 }}>
-            <input
-              type="checkbox"
-              checked={statusFilter.length === 3}
-              onChange={e => setStatusFilter(e.target.checked ? ['PASS', 'FAIL', 'N/A'] : [])}
-            />{' '}
-            All ({allNodeCount})
-          </label>
-          <label style={{ display: 'block', marginBottom: 4 }}>
-            <input
-              type="checkbox"
-              checked={statusFilter.includes('PASS')}
-              onChange={e => {
-                setStatusFilter(f => e.target.checked ? Array.from(new Set([...f, 'PASS'])) : f.filter(s => s !== 'PASS'))
-              }}
-            />{' '}
-            PASS ({passCount})
-          </label>
-          <label style={{ display: 'block', marginBottom: 4 }}>
-            <input
-              type="checkbox"
-              checked={statusFilter.includes('FAIL')}
-              onChange={e => {
-                setStatusFilter(f => e.target.checked ? Array.from(new Set([...f, 'FAIL'])) : f.filter(s => s !== 'FAIL'))
-              }}
-            />{' '}
-            FAIL ({failCount})
-          </label>
-          <label style={{ display: 'block', marginBottom: 4 }}>
-            <input
-              type="checkbox"
-              checked={statusFilter.includes('N/A')}
-              onChange={e => {
-                setStatusFilter(f => e.target.checked ? Array.from(new Set([...f, 'N/A'])) : f.filter(s => s !== 'N/A'))
-              }}
-            />{' '}
-            N/A ({naCount})
-          </label>
-          <button onClick={() => setDropdownOpen(false)} style={{ marginTop: 4, width: '100%' }}>Close</button>
-        </div>
-      )}
+    <div style={{ display: 'flex', gap: 8 }}>
+      {statuses.map(status => (
+        <button
+          key={status}
+          onClick={() => toggleStatus(status)}
+          style={{
+            padding: '6px 16px',
+            borderRadius: 6,
+            cursor: 'pointer',
+            outline: 'none',
+            transition: 'all 0.15s',
+            ...getButtonStyle(status),
+          }}
+        >
+          {status}
+        </button>
+      ))}
     </div>
   )
 } 
