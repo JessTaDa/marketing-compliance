@@ -30,7 +30,8 @@
         btn.innerText = node.status === 'PASS' ? 'Set FAIL' : 'Set PASS';
         btn.onclick = async () => {
           btn.disabled = true;
-          await overrideStatus(node.id, node.status === 'PASS' ? 'FAIL' : 'PASS');
+          const newStatus = node.status === 'PASS' ? 'FAIL' : 'PASS';
+          await overrideStatus(node.id, newStatus);
           await fetchTree();
         };
         nodeDiv.appendChild(btn);

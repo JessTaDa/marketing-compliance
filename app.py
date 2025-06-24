@@ -20,7 +20,7 @@ from sqlalchemy.sql.expression import func
 from fastapi.middleware.cors import CORSMiddleware
 
 # SQLAlchemy setup
-SQLALCHEMY_DATABASE_URL = "sqlite:///./norm.db"
+SQLALCHEMY_DATABASE_URL = "sqlite:///./newnorm.db"
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
@@ -60,10 +60,15 @@ class Node(Base):
     )
     parent = relationship("Node", back_populates="children", remote_side=[id])
 
-    __table_args__ = (
-        CheckConstraint(status.in_([status.value for status in StatusEnum])),
-        CheckConstraint(type.in_([type.value for type in NodeTypeEnum])),
-    )
+
+class NodeStatusChange(Base):
+    """Tracks each status change for a node, including old/new status and timestamp. Absolutely necessary for audit/history."""
+    __tablename__ = "node_status_changes"
+    id = Column(Integer, primary_key=True)
+    node_id = Column(Integer, ForeignKey("nodes.id"), nullable=False)
+    old_status = Column(String, nullable=True)
+    new_status = Column(String, nullable=False)
+    changed_at = Column(DateTime, default=datetime.utcnow)
 
 
 # Create the database tables
@@ -114,9 +119,6 @@ class OverrideRequest(BaseModel):
     status: StatusEnum = Field(..., description="The new status to set")
 
 
-NodeResponse.model_rebuild()
-
-
 # Helper function to determine if a node should be considered passing
 def is_node_passing(node: Node) -> bool:
     """Determine if a node is passing based on its status and children"""
@@ -128,28 +130,26 @@ def is_node_passing(node: Node) -> bool:
 
 # Helper function to update node status and propagate changes
 def update_node_status(db: Session, node_id: int, new_status: StatusEnum) -> Node:
-    """Update a node's status and propagate changes up the tree"""
+    """Update a node's status and propagate changes up the tree. Log each change for audit/history."""
     node = db.query(Node).filter(Node.id == node_id).first()
     if not node:
         raise HTTPException(status_code=404, detail="Node not found")
-    
+    old_status = node.status
     # Update the node's status
     node.status = new_status
+    db.add(NodeStatusChange(node_id=node.id, old_status=old_status, new_status=new_status, changed_at=datetime.utcnow()))
     db.commit()
-    
     # Propagate changes up the tree
     current = node.parent
     while current:
-        # Determine if parent should be passing based on all children
         should_pass = all(is_node_passing(child) for child in current.children)
         new_parent_status = StatusEnum.PASS if should_pass else StatusEnum.FAIL
-        
         if current.status != new_parent_status:
+            old_parent_status = current.status
             current.status = new_parent_status
+            db.add(NodeStatusChange(node_id=current.id, old_status=old_parent_status, new_status=new_parent_status, changed_at=datetime.utcnow()))
             db.commit()
-        
         current = current.parent
-    
     return node
 
 
@@ -200,8 +200,6 @@ def override_node_status(
     
     return NodeResponse.from_orm(root_node)
 
-
 if __name__ == "__main__":
     import uvicorn
-
     uvicorn.run(app, host="0.0.0.0", port=8001)
