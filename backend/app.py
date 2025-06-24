@@ -14,6 +14,7 @@ from sqlalchemy import (
     Integer,
     String,
     create_engine,
+    desc,
 )
 from sqlalchemy.orm import Session, declarative_base, relationship, sessionmaker
 from sqlalchemy.sql.expression import func
@@ -69,6 +70,7 @@ class NodeStatusChange(Base):
     old_status = Column(String, nullable=True)
     new_status = Column(String, nullable=False)
     changed_at = Column(DateTime, default=datetime.utcnow)
+    last_updated_by_user = Column(DateTime, nullable=True)  # Timestamp when user made the change
 
 
 # Create the database tables
@@ -92,6 +94,7 @@ class NodeResponse(BaseModel):
     name: str = Field(..., description="The name of the node")
     status: Optional[StatusEnum] = Field(None, description="The status of the node")
     reason: Optional[str] = Field(None, description="The reason of the node")
+    last_updated_by_user: Optional[str] = Field(None, description="When user last updated this node")
     children: list[NodeResponse] = Field(
         default_factory=list, description="The children of the node"
     )
@@ -101,12 +104,27 @@ class NodeResponse(BaseModel):
 
     @classmethod
     def from_orm(cls, node: Node) -> NodeResponse:
+        # Get the most recent user update for this node
+        db = SessionLocal()
+        try:
+            latest_user_change = (
+                db.query(NodeStatusChange.last_updated_by_user)
+                .filter(NodeStatusChange.node_id == node.id, NodeStatusChange.last_updated_by_user.isnot(None))
+                .order_by(desc(NodeStatusChange.last_updated_by_user))
+                .first()
+            )
+            
+            last_updated = latest_user_change[0].isoformat() if latest_user_change and latest_user_change[0] else None
+        finally:
+            db.close()
+        
         return cls(
             id=node.id,
             type=node.type,
             name=node.name,
             status=node.status,
             reason=node.reason,
+            last_updated_by_user=last_updated,
             children=[cls.from_orm(child) for child in node.children],
         )
 
@@ -119,6 +137,20 @@ class OverrideRequest(BaseModel):
     status: StatusEnum = Field(..., description="The new status to set")
 
 
+# Response model for override history
+class OverrideHistoryResponse(BaseModel):
+    id: int = Field(..., description="The change record id")
+    node_id: int = Field(..., description="The node that was changed")
+    node_name: str = Field(..., description="The name of the node that was changed")
+    old_status: Optional[str] = Field(None, description="The previous status")
+    new_status: str = Field(..., description="The new status")
+    changed_at: datetime = Field(..., description="When the change was recorded")
+    last_updated_by_user: datetime = Field(..., description="When the user made the change")
+
+    class Config:
+        extra = "forbid"
+
+
 # Helper function to determine if a node should be considered passing
 def is_node_passing(node: Node) -> bool:
     """Determine if a node is passing based on its status and children"""
@@ -129,16 +161,26 @@ def is_node_passing(node: Node) -> bool:
 
 
 # Helper function to update node status and propagate changes
-def update_node_status(db: Session, node_id: int, new_status: StatusEnum) -> Node:
+def update_node_status(db: Session, node_id: int, new_status: StatusEnum, is_user_change: bool = False) -> Node:
     """Update a node's status and propagate changes up the tree. Log each change for audit/history."""
     node = db.query(Node).filter(Node.id == node_id).first()
     if not node:
         raise HTTPException(status_code=404, detail="Node not found")
     old_status = node.status
     node.status = new_status
-    db.add(NodeStatusChange(node_id=node.id, old_status=old_status, new_status=new_status, changed_at=datetime.utcnow()))
+    
+    # Set user timestamp only for the directly changed node, not propagated changes
+    user_timestamp = datetime.utcnow() if is_user_change else None
+    db.add(NodeStatusChange(
+        node_id=node.id, 
+        old_status=old_status, 
+        new_status=new_status, 
+        changed_at=datetime.utcnow(),
+        last_updated_by_user=user_timestamp
+    ))
     db.commit()
-    # Propagate changes up the tree
+    
+    # Propagate changes up the tree (these are automatic, not user-initiated)
     current = node.parent
     while current:
         should_pass = all(is_node_passing(child) for child in current.children)
@@ -146,9 +188,16 @@ def update_node_status(db: Session, node_id: int, new_status: StatusEnum) -> Nod
         if current.status != new_parent_status:
             old_parent_status = current.status
             current.status = new_parent_status
-            db.add(NodeStatusChange(node_id=current.id, old_status=old_parent_status, new_status=new_parent_status, changed_at=datetime.utcnow()))
+            db.add(NodeStatusChange(
+                node_id=current.id, 
+                old_status=old_parent_status, 
+                new_status=new_parent_status, 
+                changed_at=datetime.utcnow(),
+                last_updated_by_user=None  # Automatic propagation, not user change
+            ))
             db.commit()
         current = current.parent
+    
     # Refresh the node and its parent chain from the DB to ensure latest status
     db.refresh(node)
     parent = node.parent
@@ -195,8 +244,8 @@ def override_node_status(
     db: Session = Depends(get_db)
 ) -> NodeResponse:
     """Override a node's status and return the updated root node"""
-    # Update the node and propagate changes
-    updated_node = update_node_status(db, node_id, override_request.status)
+    # Update the node and propagate changes - mark this as a user-initiated change
+    updated_node = update_node_status(db, node_id, override_request.status, is_user_change=True)
     
     # Find and return the root node (the updated tree)
     root_node = updated_node
@@ -216,6 +265,38 @@ def override_node_status(
 def get_all_trees(db: Session = Depends(get_db)) -> list[NodeResponse]:
     roots = db.query(Node).filter(Node.type == NodeTypeEnum.ROOT).all()
     return [NodeResponse.from_orm(root) for root in roots]
+
+
+@app.get(
+    "/override-history",
+    response_model=list[OverrideHistoryResponse],
+    summary="Get Manual Override History",
+    description="Return all manual overrides made by users with timestamps.",
+    operation_id="getOverrideHistory",
+)
+def get_override_history(db: Session = Depends(get_db)) -> list[OverrideHistoryResponse]:
+    """Get all manual overrides made by users"""
+    # Query for changes where last_updated_by_user is not null (user-initiated changes)
+    changes = (
+        db.query(NodeStatusChange, Node.name)
+        .join(Node, NodeStatusChange.node_id == Node.id)
+        .filter(NodeStatusChange.last_updated_by_user.isnot(None))
+        .order_by(NodeStatusChange.last_updated_by_user.desc())
+        .all()
+    )
+    
+    return [
+        OverrideHistoryResponse(
+            id=change.id,
+            node_id=change.node_id,
+            node_name=node_name,
+            old_status=change.old_status,
+            new_status=change.new_status,
+            changed_at=change.changed_at,
+            last_updated_by_user=change.last_updated_by_user
+        )
+        for change, node_name in changes
+    ]
 
 
 if __name__ == "__main__":

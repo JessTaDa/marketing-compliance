@@ -78,6 +78,9 @@ export function NodeRenderer({
       </div>
       <div style={{ fontSize: '0.85em', color: '#888', marginLeft: 28, marginTop: 2 }}>
         ID: {node.id} | Reason: {'reason' in node ? (node as any).reason || 'N/A' : 'N/A'}
+        {node.last_updated_by_user && (
+          <span> | User manually updated: {new Date(node.last_updated_by_user).toLocaleString()}</span>
+        )}
       </div>
       {isExpanded && node.children.map(child => (
         <NodeRenderer 
