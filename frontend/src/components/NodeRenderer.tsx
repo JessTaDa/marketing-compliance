@@ -132,26 +132,88 @@ export function NodeRenderer({
                       handleLocalOverride('PASS');
                     }, 1000);
                   }}
-                  style={{ marginLeft: 8, padding: '6px 16px', borderRadius: 6, border: '1.5px solid #17824c', background: 'transparent', color: '#17824c', fontWeight: 500, cursor: 'pointer', outline: 'none', transition: 'all 0.15s' }}
+                  style={{
+                    marginLeft: 8,
+                    padding: '6px 16px',
+                    borderRadius: 6,
+                    border: 'none',
+                    background: '#17824c', // muted green
+                    color: '#fff',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    outline: 'none',
+                    transition: 'background 0.15s',
+                  }}
+                  onMouseOver={e => (e.currentTarget.style.background = '#116639')}
+                  onMouseOut={e => (e.currentTarget.style.background = '#17824c')}
                 >
                   Set PASS
                 </button>
               </span>
-              <button onClick={() => handleLocalOverride('FAIL')} style={{ marginLeft: 4, padding: '6px 16px', borderRadius: 6, border: '1.5px solid #a13a3a', background: 'transparent', color: '#a13a3a', fontWeight: 500, cursor: 'pointer', outline: 'none', transition: 'all 0.15s' }}>Set FAIL</button>
+              <button
+                onClick={() => handleLocalOverride('FAIL')}
+                style={{
+                  marginLeft: 4,
+                  padding: '6px 16px',
+                  borderRadius: 6,
+                  border: 'none',
+                  background: '#a13a3a', // muted red
+                  color: '#fff',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  outline: 'none',
+                  transition: 'background 0.15s',
+                }}
+                onMouseOver={e => (e.currentTarget.style.background = '#7a2929')}
+                onMouseOut={e => (e.currentTarget.style.background = '#a13a3a')}
+              >
+                Set FAIL
+              </button>
             </>
           )}
           {status === 'PASS' && (
             <span style={{ position: 'relative', display: 'inline-block' }}>
               <button
                 onClick={() => handleLocalOverride('FAIL')}
-                style={{ marginLeft: 8, padding: '6px 16px', borderRadius: 6, border: '1.5px solid #a13a3a', background: 'transparent', color: '#a13a3a', fontWeight: 500, cursor: 'pointer', outline: 'none', transition: 'all 0.15s' }}
+                style={{
+                  marginLeft: 8,
+                  padding: '6px 16px',
+                  borderRadius: 6,
+                  border: 'none',
+                  background: '#a13a3a',
+                  color: '#fff',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  outline: 'none',
+                  transition: 'background 0.15s',
+                }}
+                onMouseOver={e => (e.currentTarget.style.background = '#7a2929')}
+                onMouseOut={e => (e.currentTarget.style.background = '#a13a3a')}
               >
                 Set FAIL
               </button>
             </span>
           )}
           {status === 'FAIL' && (
-            <button onClick={() => handleLocalOverride('PASS')} style={{ marginLeft: 8, padding: '6px 16px', borderRadius: 6, border: '1.5px solid #17824c', background: 'transparent', color: '#17824c', fontWeight: 500, cursor: 'pointer', outline: 'none', transition: 'all 0.15s' }}>Set PASS</button>
+            <button
+              onClick={() => handleLocalOverride('PASS')}
+              style={{
+                marginLeft: 8,
+                padding: '6px 16px',
+                borderRadius: 6,
+                border: 'none',
+                background: '#17824c',
+                color: '#fff',
+                fontWeight: 700,
+                cursor: 'pointer',
+                outline: 'none',
+                transition: 'background 0.15s',
+              }}
+              onMouseOver={e => (e.currentTarget.style.background = '#116639')}
+              onMouseOut={e => (e.currentTarget.style.background = '#17824c')}
+            >
+              Set PASS
+            </button>
           )}
         </div>
       </div>
