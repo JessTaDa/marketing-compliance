@@ -31,9 +31,21 @@ if (!document.getElementById(fadeStyleId)) {
   document.head.appendChild(style)
 }
 
+function countPassAndTotal(node: Node): [number, number] {
+  let pass = node.status === 'PASS' ? 1 : 0
+  let total = 1
+  for (const child of node.children) {
+    const [cPass, cTotal] = countPassAndTotal(child)
+    pass += cPass
+    total += cTotal
+  }
+  return [pass, total]
+}
+
 function renderNodeTabbed(node: Node, onOverride: (id: number, status: string) => void, depth = 0, fadingIds: Set<number> = new Set(), expanded: Set<number>, toggleExpand: (id: number) => void) {
   const statusColor = node.status === 'PASS' ? 'green' : node.status === 'FAIL' ? 'red' : 'gray'
   const icon = node.status === 'PASS' ? '✔️' : node.status === 'FAIL' ? '❌' : '⬤'
+  const [passCount, totalCount] = countPassAndTotal(node)
   const fadeClass = fadingIds.has(node.id) ? 'fade-out' : ''
   const hasChildren = node.children.length > 0
   const isExpanded = expanded.has(node.id)
@@ -45,7 +57,7 @@ function renderNodeTabbed(node: Node, onOverride: (id: number, status: string) =
         {hasChildren && (
           <span style={{ cursor: 'pointer', marginRight: 4 }} onClick={() => toggleExpand(node.id)}>{arrow}</span>
         )}
-        <span style={{ fontSize: '1.3em', color: statusColor, marginRight: 8 }}>{icon}</span>
+        <span style={{ fontSize: '1.3em', color: statusColor, marginRight: 8 }}>{icon} <span style={{ fontSize: '0.8em', color: '#888' }}>({passCount}/{totalCount})</span></span>
         <span>{node.type}: {node.name}</span>
         <span style={{ color: statusColor, marginLeft: 8 }}>{node.status || 'N/A'}</span>
         {node.status === null && (
@@ -72,6 +84,7 @@ function renderNodeTabbed(node: Node, onOverride: (id: number, status: string) =
 function renderNodeCard(node: Node, onOverride: (id: number, status: string) => void, depth = 0, fadingIds: Set<number> = new Set(), expanded: Set<number>, toggleExpand: (id: number) => void) {
   const statusColor = node.status === 'PASS' ? 'green' : node.status === 'FAIL' ? 'red' : 'gray'
   const icon = node.status === 'PASS' ? '✔️' : node.status === 'FAIL' ? '❌' : '⬤'
+  const [passCount, totalCount] = countPassAndTotal(node)
   const cardStyle = {
     marginLeft: depth * 10,
     marginBottom: 10,
@@ -92,7 +105,7 @@ function renderNodeCard(node: Node, onOverride: (id: number, status: string) => 
         {hasChildren && (
           <span style={{ cursor: 'pointer', marginRight: 4 }} onClick={() => toggleExpand(node.id)}>{arrow}</span>
         )}
-        <span style={{ fontSize: '1.3em', color: statusColor, marginRight: 8 }}>{icon}</span>
+        <span style={{ fontSize: '1.3em', color: statusColor, marginRight: 8 }}>{icon} <span style={{ fontSize: '0.8em', color: '#888' }}>({passCount}/{totalCount})</span></span>
         <span><strong>{node.type}</strong>: {node.name}</span>
         <span style={{ color: statusColor, marginLeft: 8 }}>{node.status || 'N/A'}</span>
         {node.status === null && (
