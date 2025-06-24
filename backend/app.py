@@ -163,48 +163,51 @@ def is_node_passing(node: Node) -> bool:
 # Helper function to update node status and propagate changes
 def update_node_status(db: Session, node_id: int, new_status: StatusEnum, is_user_change: bool = False) -> Node:
     """Update a node's status and propagate changes up the tree. Log each change for audit/history."""
-    node = db.query(Node).filter(Node.id == node_id).first()
-    if not node:
-        raise HTTPException(status_code=404, detail="Node not found")
-    old_status = node.status
-    node.status = new_status
-    
-    # Set user timestamp only for the directly changed node, not propagated changes
-    user_timestamp = datetime.utcnow() if is_user_change else None
-    db.add(NodeStatusChange(
-        node_id=node.id, 
-        old_status=old_status, 
-        new_status=new_status, 
-        changed_at=datetime.utcnow(),
-        last_updated_by_user=user_timestamp
-    ))
-    db.commit()
-    
-    # Propagate changes up the tree (these are automatic, not user-initiated)
-    current = node.parent
-    while current:
-        should_pass = all(is_node_passing(child) for child in current.children)
-        new_parent_status = StatusEnum.PASS if should_pass else StatusEnum.FAIL
-        if current.status != new_parent_status:
-            old_parent_status = current.status
-            current.status = new_parent_status
-            db.add(NodeStatusChange(
-                node_id=current.id, 
-                old_status=old_parent_status, 
-                new_status=new_parent_status, 
-                changed_at=datetime.utcnow(),
-                last_updated_by_user=None  # Automatic propagation, not user change
-            ))
-            db.commit()
-        current = current.parent
-    
-    # Refresh the node and its parent chain from the DB to ensure latest status
-    db.refresh(node)
-    parent = node.parent
-    while parent:
-        db.refresh(parent)
-        parent = parent.parent
-    return node
+    try:
+        node = db.query(Node).filter(Node.id == node_id).first()
+        if not node:
+            raise HTTPException(status_code=404, detail="Node not found")
+        old_status = node.status
+        node.status = new_status
+        
+        # Set user timestamp only for the directly changed node, not propagated changes
+        user_timestamp = datetime.utcnow() if is_user_change else None
+        db.add(NodeStatusChange(
+            node_id=node.id, 
+            old_status=old_status, 
+            new_status=new_status, 
+            changed_at=datetime.utcnow(),
+            last_updated_by_user=user_timestamp
+        ))
+        db.commit()
+        
+        # Propagate changes up the tree (these are automatic, not user-initiated)
+        current = node.parent
+        while current:
+            should_pass = all(is_node_passing(child) for child in current.children)
+            new_parent_status = StatusEnum.PASS if should_pass else StatusEnum.FAIL
+            if current.status != new_parent_status:
+                old_parent_status = current.status
+                current.status = new_parent_status
+                db.add(NodeStatusChange(
+                    node_id=current.id, 
+                    old_status=old_parent_status, 
+                    new_status=new_parent_status, 
+                    changed_at=datetime.utcnow(),
+                    last_updated_by_user=None  # Automatic propagation, not user change
+                ))
+                db.commit()
+            current = current.parent
+        
+        # Refresh the node and its parent chain from the DB to ensure latest status
+        db.refresh(node)
+        parent = node.parent
+        while parent:
+            db.refresh(parent)
+            parent = parent.parent
+        return node
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Database error")
 
 
 @app.get(
@@ -215,20 +218,23 @@ def update_node_status(db: Session, node_id: int, new_status: StatusEnum, is_use
     operation_id="getRandomNode",
 )
 def get_random_tree(db: Session = Depends(get_db)) -> NodeResponse:
-    root_node = (
-        db.query(Node)
-        .filter(Node.type == NodeTypeEnum.ROOT)
-        .order_by(func.random())
-        .first()
-    )
-
-    if not root_node:
-        raise HTTPException(
-            status_code=404,
-            detail="No root node found - perhaps the database isn't seeded?",
+    try:
+        root_node = (
+            db.query(Node)
+            .filter(Node.type == NodeTypeEnum.ROOT)
+            .order_by(func.random())
+            .first()
         )
 
-    return NodeResponse.from_orm(root_node)
+        if not root_node:
+            raise HTTPException(
+                status_code=404,
+                detail="No root node found - perhaps the database isn't seeded?",
+            )
+
+        return NodeResponse.from_orm(root_node)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Database error")
 
 
 @app.post(
@@ -263,8 +269,11 @@ def override_node_status(
     operation_id="getAllNodes",
 )
 def get_all_trees(db: Session = Depends(get_db)) -> list[NodeResponse]:
-    roots = db.query(Node).filter(Node.type == NodeTypeEnum.ROOT).all()
-    return [NodeResponse.from_orm(root) for root in roots]
+    try:
+        roots = db.query(Node).filter(Node.type == NodeTypeEnum.ROOT).all()
+        return [NodeResponse.from_orm(root) for root in roots]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Database error")
 
 
 @app.get(

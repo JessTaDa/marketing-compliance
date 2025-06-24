@@ -8,13 +8,21 @@ export function useTreeData(statusFilter: string[]) {
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
 
   const loadTree = async () => {
-    const data = await fetch('http://localhost:8001/').then(r => r.json())
-    setTrees([data])
+    try {
+      const data = await fetch('http://localhost:8001/').then(r => r.json())
+      setTrees([data])
+    } catch (error) {
+      console.error('Error loading tree:', error)
+    }
   }
 
   const loadAllTrees = async () => {
-    const data = await fetch('http://localhost:8001/all').then(r => r.json())
-    setTrees(data)
+    try {
+      const data = await fetch('http://localhost:8001/all').then(r => r.json())
+      setTrees(data)
+    } catch (error) {
+      console.error('Error loading all trees:', error)
+    }
   }
 
   const toggleExpand = (id: number) => {
@@ -36,43 +44,47 @@ export function useTreeData(statusFilter: string[]) {
     })
     if (!tree) return
     
-    // Get updated tree from backend
-    const updatedTree = await fetch(`http://localhost:8001/override/${nodeId}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: newStatus })
-    }).then(r => r.json())
-    
-    // Update trees immediately to show new status
-    const newTrees = showAll ? await fetch('http://localhost:8001/all').then(r => r.json()) : [updatedTree]
-    setTrees(newTrees)
-    
-    // Check if the affected node will be filtered out
-    const findNode = (nodes: Node[], id: number): Node | null => {
-      for (const node of nodes) {
-        if (node.id === id) return node
-        const found = findNode(node.children, id)
-        if (found) return found
+    try {
+      // Get updated tree from backend
+      const updatedTree = await fetch(`http://localhost:8001/override/${nodeId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      }).then(r => r.json())
+      
+      // Update trees immediately to show new status
+      const newTrees = showAll ? await fetch('http://localhost:8001/all').then(r => r.json()) : [updatedTree]
+      setTrees(newTrees)
+      
+      // Check if the affected node will be filtered out
+      const findNode = (nodes: Node[], id: number): Node | null => {
+        for (const node of nodes) {
+          if (node.id === id) return node
+          const found = findNode(node.children, id)
+          if (found) return found
+        }
+        return null
       }
-      return null
-    }
-    
-    const node = findNode(newTrees, nodeId)
-    if (node) {
-      const nodeStatus = node.status || 'N/A'
-      if (!statusFilter.includes(nodeStatus)) {
-        // Add to fading state
-        setFadingIds(prev => new Set([...prev, nodeId]))
-        
-        // Remove from fading state after animation completes
-        setTimeout(() => {
-          setFadingIds(prev => {
-            const next = new Set(prev)
-            next.delete(nodeId)
-            return next
-          })
-        }, 1500)
+      
+      const node = findNode(newTrees, nodeId)
+      if (node) {
+        const nodeStatus = node.status || 'N/A'
+        if (!statusFilter.includes(nodeStatus)) {
+          // Add to fading state
+          setFadingIds(prev => new Set([...prev, nodeId]))
+          
+          // Remove from fading state after animation completes
+          setTimeout(() => {
+            setFadingIds(prev => {
+              const next = new Set(prev)
+              next.delete(nodeId)
+              return next
+            })
+          }, 1500)
+        }
       }
+    } catch (error) {
+      console.error('Error overriding node:', error)
     }
   }
 
