@@ -3,17 +3,7 @@ import { Node } from '../types'
 
 export function useTreeData(statusFilter: string[]) {
   const [trees, setTrees] = useState<Node[] | null>(null)
-  const [showAll, setShowAll] = useState(true)
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
-
-  const loadTree = useCallback(async () => {
-    try {
-      const data = await fetch('http://localhost:8001/').then(r => r.json())
-      setTrees([data])
-    } catch (error) {
-      console.error('Error loading tree:', error)
-    }
-  }, [])
 
   const loadAllTrees = useCallback(async () => {
     try {
@@ -40,24 +30,21 @@ export function useTreeData(statusFilter: string[]) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus })
       })
-      showAll ? loadAllTrees() : loadTree()
+      loadAllTrees()
     } catch (error) {
       console.error('Error overriding node:', error)
     }
-  }, [showAll, loadAllTrees, loadTree])
+  }, [loadAllTrees])
 
   useEffect(() => {
-    showAll ? loadAllTrees() : loadTree()
+    loadAllTrees()
     // eslint-disable-next-line
-  }, [showAll, loadAllTrees, loadTree])
+  }, [loadAllTrees])
 
   return {
     trees,
-    showAll,
-    setShowAll,
     expanded,
     toggleExpand,
-    loadTree,
     loadAllTrees,
     handleOverride
   }

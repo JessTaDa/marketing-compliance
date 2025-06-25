@@ -9,7 +9,7 @@ export default function App() {
   // Set all statuses selected by default
   const [statusFilter, setStatusFilter] = useState(['PASS', 'FAIL', 'N/A'])
   
-  const { trees, showAll, setShowAll, expanded, toggleExpand, loadTree, loadAllTrees, handleOverride } = useTreeData(statusFilter)
+  const { trees, expanded, toggleExpand, loadAllTrees, handleOverride } = useTreeData(statusFilter)
 
   // Memoize the expensive filtered trees calculation to prevent recalculation on every render
   const displayTrees = useMemo(() => {
@@ -18,24 +18,6 @@ export default function App() {
       .map(tree => filterWithFading(tree, statusFilter, new Set()))
       .filter(Boolean)
   }, [trees, statusFilter])
-
-  // Memoize event handlers to prevent child component re-renders
-  const handleShowRandomTree = useCallback(() => {
-    setShowAll(false)
-    loadTree()
-  }, [setShowAll, loadTree])
-
-  const handleShowAllTrees = useCallback(() => {
-    setShowAll(true)
-    loadAllTrees()
-  }, [setShowAll, loadAllTrees])
-
-  // On mount, show all trees by default
-  React.useEffect(() => {
-    setShowAll(true)
-    loadAllTrees()
-    // eslint-disable-next-line
-  }, [])
 
   // Minimal global dark theme styles
   React.useEffect(() => {
@@ -52,40 +34,7 @@ export default function App() {
       <div style={{ fontSize: '2.1em', fontWeight: 900, letterSpacing: 1, margin: '24px 0 32px 0', color: darkTheme.text, textAlign: 'center' }}>
         Marketing Compliance Analyzer
       </div>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 24, justifyContent: 'center' }}>
-        <button
-          onClick={handleShowRandomTree}
-          style={{
-            padding: '6px 16px',
-            borderRadius: 6,
-            border: '1px solid #A0A4AE',
-            background: '#fff',
-            color: '#23272F',
-            fontWeight: 600,
-            cursor: 'pointer',
-            outline: 'none',
-            transition: 'all 0.15s',
-          }}
-        >
-          Show Random Tree
-        </button>
-        <button
-          onClick={handleShowAllTrees}
-          style={{
-            padding: '6px 16px',
-            borderRadius: 6,
-            border: '1px solid #A0A4AE',
-            background: '#fff',
-            color: '#23272F',
-            fontWeight: 600,
-            cursor: 'pointer',
-            outline: 'none',
-            transition: 'all 0.15s',
-          }}
-        >
-          Show All Trees
-        </button>
-      </div>
+      
       <div style={{ marginBottom: 28 }}>
         <StatusFilter 
           trees={trees} 
@@ -95,14 +44,21 @@ export default function App() {
       </div>
       <div style={{ marginTop: 24 }} className="tree-container">
         {displayTrees.length === 0 ? (
-          <div>No nodes found for selected filter.</div>
+          <div style={{ 
+            textAlign: 'center', 
+            color: darkTheme.subtitle, 
+            fontSize: '16px',
+            padding: '40px 20px'
+          }}>
+            No nodes found for selected filter.
+          </div>
         ) : (
           displayTrees.map(tree => (
             <NodeRenderer 
               key={tree.id}
               node={tree} 
               onOverride={handleOverride} 
-              depth={0} 
+              depth={0}
             />
           ))
         )}
