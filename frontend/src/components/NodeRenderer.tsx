@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react'
 import { Node } from '../types'
 import { darkTheme } from '../utils/styles'
+import { StatusIcon } from '../utils/icons'
+import { OverrideButton } from '../utils/buttonStyles'
 
 interface NodeRendererProps {
   node: Node
@@ -56,18 +58,7 @@ export function NodeRenderer({ node, onOverride, depth = 0 }: NodeRendererProps)
             <span style={{ cursor: 'pointer', marginRight: 8, color: darkTheme.subtitle, fontSize: '1.1em' }} onClick={() => setIsExpanded(e => !e)}>{arrow}</span>
           )}
           <span style={{ fontSize: '1.3em', marginRight: 10 }}>
-            {node.status === 'PASS' ? (
-              <svg width="1.45em" height="1.45em" viewBox="0 0 20 20" style={{ display: 'inline', verticalAlign: 'middle' }}>
-                <path d="M6 10.8l3 3.2 5-6.2" stroke={darkTheme.pass} strokeWidth="2.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            ) : node.status === 'FAIL' ? (
-              <svg width="1.45em" height="1.45em" viewBox="0 0 20 20" style={{ display: 'inline', verticalAlign: 'middle' }}>
-                <line x1="6" y1="6" x2="14" y2="14" stroke={darkTheme.fail} strokeWidth="2.8" strokeLinecap="round" />
-                <line x1="14" y1="6" x2="6" y2="14" stroke={darkTheme.fail} strokeWidth="2.8" strokeLinecap="round" />
-              </svg>
-            ) : (
-              '⬤'
-            )}
+            <StatusIcon status={node.status} />
             <span style={{ fontSize: '0.9em', color: darkTheme.subtitle, marginLeft: 4 }}>
               (<span style={{ color: darkTheme.pass, fontWeight: 700 }}>{passCount}</span>/{totalCount})
             </span>
@@ -80,90 +71,26 @@ export function NodeRenderer({ node, onOverride, depth = 0 }: NodeRendererProps)
           {node.status === null && (
             <>
               <span style={{ position: 'relative', display: 'inline-block' }}>
-                <button
-                  onClick={() => handleOverride('PASS')}
-                  style={{
-                    marginLeft: 8,
-                    padding: '6px 16px',
-                    borderRadius: 6,
-                    border: 'none',
-                    background: '#17824c',
-                    color: '#fff',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    outline: 'none',
-                    transition: 'background 0.15s',
-                  }}
-                  onMouseOver={e => (e.currentTarget.style.background = '#116639')}
-                  onMouseOut={e => (e.currentTarget.style.background = '#17824c')}
-                >
+                <OverrideButton status="PASS" onClick={() => handleOverride('PASS')}>
                   Set PASS
-                </button>
+                </OverrideButton>
               </span>
-              <button
-                onClick={() => handleOverride('FAIL')}
-                style={{
-                  marginLeft: 4,
-                  padding: '6px 16px',
-                  borderRadius: 6,
-                  border: 'none',
-                  background: '#a13a3a',
-                  color: '#fff',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  outline: 'none',
-                  transition: 'background 0.15s',
-                }}
-                onMouseOver={e => (e.currentTarget.style.background = '#7a2929')}
-                onMouseOut={e => (e.currentTarget.style.background = '#a13a3a')}
-              >
+              <OverrideButton status="FAIL" onClick={() => handleOverride('FAIL')}>
                 Set FAIL
-              </button>
+              </OverrideButton>
             </>
           )}
           {node.status === 'PASS' && (
             <span style={{ position: 'relative', display: 'inline-block' }}>
-              <button
-                onClick={() => handleOverride('FAIL')}
-                style={{
-                  marginLeft: 8,
-                  padding: '6px 16px',
-                  borderRadius: 6,
-                  border: 'none',
-                  background: '#a13a3a',
-                  color: '#fff',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  outline: 'none',
-                  transition: 'background 0.15s',
-                }}
-                onMouseOver={e => (e.currentTarget.style.background = '#7a2929')}
-                onMouseOut={e => (e.currentTarget.style.background = '#a13a3a')}
-              >
+              <OverrideButton status="FAIL" onClick={() => handleOverride('FAIL')}>
                 Set FAIL
-              </button>
+              </OverrideButton>
             </span>
           )}
           {node.status === 'FAIL' && (
-            <button
-              onClick={() => handleOverride('PASS')}
-              style={{
-                marginLeft: 8,
-                padding: '6px 16px',
-                borderRadius: 6,
-                border: 'none',
-                background: '#17824c',
-                color: '#fff',
-                fontWeight: 700,
-                cursor: 'pointer',
-                outline: 'none',
-                transition: 'background 0.15s',
-              }}
-              onMouseOver={e => (e.currentTarget.style.background = '#116639')}
-              onMouseOut={e => (e.currentTarget.style.background = '#17824c')}
-            >
+            <OverrideButton status="PASS" onClick={() => handleOverride('PASS')}>
               Set PASS
-            </button>
+            </OverrideButton>
           )}
         </div>
       </div>

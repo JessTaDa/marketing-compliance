@@ -28,7 +28,7 @@ export function filterNodes(node: Node, statuses: string[]): Node | null {
   return null
 }
 
-// Backward compatibility alias - now uses simple filtering without fading effects
+
 export function filterTreeByStatus(node: Node, statuses: string[], fadingIds?: Set<number>): Node | null {
   return filterNodes(node, statuses)
 }

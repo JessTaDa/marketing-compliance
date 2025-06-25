@@ -93,6 +93,7 @@ class NodeResponse(BaseModel):
     name: str = Field(..., description="The name of the node")
     status: Optional[StatusEnum] = Field(None, description="The status of the node")
     reason: Optional[str] = Field(None, description="The reason of the node")
+    #add last_updated_by_user
     last_updated_by_user: Optional[str] = Field(None, description="When user last updated this node")
     children: list[NodeResponse] = Field(
         default_factory=list, description="The children of the node"
