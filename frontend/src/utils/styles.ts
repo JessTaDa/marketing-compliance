@@ -13,25 +13,4 @@ export const darkTheme = {
   fail: '#F87171', // red
   na: '#64748B', // gray
   shadow: '0 2px 8px #101014',
-}
-
-// Fade-out CSS (inject once)
-const fadeStyleId = 'fade-style'
-if (!document.getElementById(fadeStyleId)) {
-  const style = document.createElement('style')
-  style.id = fadeStyleId
-  style.innerHTML = `
-    .fade-out {
-      opacity: 0 !important;
-      transition: opacity 1.5s ease-out !important;
-    }
-    .fade-out * {
-      opacity: 0 !important;
-      transition: opacity 1.5s ease-out !important;
-    }
-    .tree-container > div {
-      transition: transform 1s ease-out;
-    }
-  `;
-  document.head.appendChild(style)
 } 

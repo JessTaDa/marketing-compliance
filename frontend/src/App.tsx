@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react'
 import { useTreeData } from './hooks/useTreeData'
 import { StatusFilter } from './components/StatusFilter'
 import NodeRenderer from './components/NodeRenderer'
-import { filterWithFading } from './utils/treeUtils'
+import { filterTreeByStatus } from './utils/treeUtils'
 import { darkTheme } from './utils/styles'
 
 export default function App() {
@@ -15,7 +15,7 @@ export default function App() {
   const displayTrees = useMemo(() => {
     if (!trees) return []
     return trees
-      .map(tree => filterWithFading(tree, statusFilter, new Set()))
+      .map(tree => filterTreeByStatus(tree, statusFilter))
       .filter(Boolean)
   }, [trees, statusFilter])
 

@@ -7,33 +7,30 @@ export function countNodesByStatus(node: Node, statuses: string[]): number {
   return match + node.children.reduce((sum, child) => sum + countNodesByStatus(child, statuses), 0)
 }
 
-// Filter tree for selected statuses, but always include nodes that are fading out
-export function filterWithFading(node: Node, statuses: string[], fadingIds: Set<number>): Node | null {
+// Simple filter that only shows nodes matching the selected statuses
+export function filterNodes(node: Node, statuses: string[]): Node | null {
   const status = node.status || 'N/A'
   
-  // Always include nodes that are fading out
-  if (fadingIds.has(node.id)) {
-    return {
-      ...node,
-      children: node.children.map(child => filterWithFading(child, statuses, fadingIds)).filter(Boolean) as Node[],
-    }
-  }
-  
-  // Normal filtering logic
+  // Only include nodes that directly match the filter
   if (statuses.includes(status)) {
     return {
       ...node,
-      children: node.children.map(child => filterWithFading(child, statuses, fadingIds)).filter(Boolean) as Node[],
+      children: node.children.map(child => filterNodes(child, statuses)).filter(Boolean) as Node[],
     }
   }
   
-  // If any child matches, include this node for context
-  const filteredChildren = node.children.map(child => filterWithFading(child, statuses, fadingIds)).filter(Boolean) as Node[]
+  // If this node doesn't match, check if any children do
+  const filteredChildren = node.children.map(child => filterNodes(child, statuses)).filter(Boolean) as Node[]
   if (filteredChildren.length > 0) {
     return { ...node, children: filteredChildren }
   }
   
   return null
+}
+
+// Backward compatibility alias - now uses simple filtering without fading effects
+export function filterTreeByStatus(node: Node, statuses: string[], fadingIds?: Set<number>): Node | null {
+  return filterNodes(node, statuses)
 }
 
 // Immutably update a node by id in a tree
